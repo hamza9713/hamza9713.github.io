@@ -1,0 +1,1927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Portfolio of a Computational Social Scientist">
+    <title>AH's Portfolio</title>
+    
+    <!-- Libraries -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/TextPlugin.min.js"></script>
+
+    <style>
+        :root {
+            /* Dark Grayscale with Silver Palette */
+            --bg-primary: #090e14;
+            --bg-secondary: #222121;
+            --bg-card: rgba(30, 30, 30, 0.6);
+            --text-primary: #ffffff;
+            --text-secondary: #e0d8d8;
+            --accent-silver: #c0c0c0;
+            --accent-light: #d4d4d4;
+            --accent-dark: #909090;
+            --glass-bg: rgba(51, 48, 48, 0.4);
+            --glass-border: rgba(211, 207, 207, 0.108);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.6);
+            --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.7);
+            --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.8);
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Inter', sans-serif;
+            
+            /* Glow effects */
+            --glow-silver: rgba(192, 192, 192, 0.3);
+            --glow-light: rgba(212, 212, 212, 0.4);
+            --glow-intense: rgba(224, 224, 224, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Mobile viewport fixes */
+        html, body {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            cursor: auto !important;
+        }
+
+        /* Ensure all content stays within viewport */
+        .container {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        /* ========== LOADING SCREEN ========== */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.6s ease, visibility 0.6s ease;
+        }
+
+        .loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .quantum-loader {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            position: relative;
+            animation: spin 1s linear infinite;
+        }
+
+        .quantum-loader::before,
+        .quantum-loader::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .quantum-loader::before {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(0deg, rgba(192, 192, 192, 0.1) 30%, transparent);
+            animation: spin 2s linear infinite;
+        }
+
+        .quantum-loader::after {
+            width: 85%;
+            height: 85%;
+            background: var(--bg-primary);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        @keyframes spin {
+            0% { transform: translateY(-50%) rotate(0deg); }
+            100% { transform: translateY(-50%) rotate(360deg); }
+        }
+
+        /* ========== NAVIGATION ========== */
+        .navbar {
+            background: rgba(13, 13, 13, 0.85);
+            backdrop-filter: blur(20px) saturate(150%);
+            border-bottom: 1px solid rgba(192, 192, 192, 0.1);
+            padding: 20px 0;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+            z-index: 1000;
+        }
+
+        .navbar.scrolled {
+            background: rgba(13, 13, 13, 0.95);
+            box-shadow: var(--shadow-md);
+        }
+
+        .navbar-brand {
+            color: var(--accent-silver) !important;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 1.2rem;
+            text-shadow: 0 0 20px rgba(192, 192, 192, 0.4);
+            position: relative;
+            padding-left: 45px;
+        }
+
+        .navbar-brand::before {
+            content: '◬';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+            animation: spin 10s linear infinite;
+        }
+
+        .nav-link {
+            color: var(--text-secondary) !important;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            margin-left: 30px;
+            position: relative;
+            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: transparent;
+            overflow: hidden;
+        }
+
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(192, 192, 192, 0.1), transparent);
+            transition: left 0.6s ease;
+        }
+
+        .nav-link:hover::before {
+            left: 100%;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: var(--accent-silver);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
+        .nav-link:hover::after,
+        .nav-link.active::after {
+            width: 80%;
+        }
+
+        .nav-link:hover {
+            color: var(--accent-light) !important;
+            transform: translateY(-2px);
+        }
+
+        /* ========== HERO SECTION ========== */
+        #hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #particleCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .hero-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80vw;
+            height: 80vh;
+            background: radial-gradient(circle at center, 
+                rgba(192, 192, 192, 0.08) 0%,
+                rgba(144, 144, 144, 0.04) 25%,
+                transparent 70%);
+            filter: blur(80px);
+            opacity: 0.6;
+            z-index: -1;
+            animation: glowPulse 8s ease-in-out infinite;
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.05); }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 4;
+        }
+
+        .hero-title {
+            font-size: clamp(40px, 8vw, 80px);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, 
+                #e0e0e0 0%, 
+                #c0c0c0 30%, 
+                #909090 70%,
+                #ffffff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -1px;
+            filter: drop-shadow(0 8px 24px rgba(192, 192, 192, 0.3));
+        }
+
+        .hero-subtitle {
+            font-size: clamp(18px, 3.5vw, 28px);
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        /* ========== BUTTONS ========== */
+        .btn-primary-gradient {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            color: var(--accent-silver);
+            padding: 16px 32px;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            cursor: pointer;
+            border-radius: 30px;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary-gradient::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(192, 192, 192, 0.1), 
+                transparent);
+            transition: left 0.6s ease;
+        }
+
+        .btn-primary-gradient:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary-gradient:hover {
+            background: rgba(192, 192, 192, 0.15);
+            border-color: rgba(192, 192, 192, 0.4);
+            color: var(--accent-light);
+            transform: translateY(-6px);
+            box-shadow: 0 12px 32px rgba(192, 192, 192, 0.2);
+        }
+
+        /* ========== MARQUEE ========== */
+        .marquee {
+            overflow: hidden;
+            white-space: nowrap;
+            background: var(--bg-primary);
+            padding: 30px 0;
+            margin: 60px 0;
+            position: relative;
+            border-top: 1px solid rgba(192, 192, 192, 0.1);
+            border-bottom: 1px solid rgba(192, 192, 192, 0.1);
+        }
+
+        .marquee-content {
+            display: inline-block;
+            animation: marquee 20s linear infinite;
+            color: var(--accent-silver);
+            font-family: var(--font-mono);
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Research Interests Marquee */
+        .research-marquee {
+            background: transparent;
+            border-top: 1px solid rgba(192, 192, 192, 0.1);
+            border-bottom: 1px solid rgba(192, 192, 192, 0.1);
+            padding: 45px 0;
+        }
+
+        .research-marquee .marquee-content {
+            animation: marquee 25s linear infinite;
+            text-transform: none;
+            letter-spacing: 1px;
+            font-size: clamp(1rem, 2.5vw, 1.3rem);
+            background: linear-gradient(90deg, 
+                var(--accent-light) 0%,
+                var(--accent-silver) 30%,
+                var(--accent-dark) 55%,
+                var(--accent-silver) 75%,
+                var(--accent-light) 100%
+            );
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            opacity: 0.85;
+        }
+
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* ========== SKILLS SECTION ========== */
+        #skills {
+            padding: 100px 0;
+            background: transparent;
+        }
+
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 40px;
+        }
+
+        .skill-category-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(30px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            padding: 40px;
+            height: 100%;
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: visible;
+            box-shadow: var(--shadow-lg);
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .skill-category-card:hover {
+            transform: translateY(-10px);
+            border-color: rgba(192, 192, 192, 0.4);
+            box-shadow: 
+            0 30px 60px rgba(0, 0, 0, 0.9),
+            0 0 0 1px rgba(212, 212, 212, 0.25),
+            0 0 60px rgba(192, 192, 192, 0.35),
+            0 0 120px rgba(192, 192, 192, 0.2);
+        }
+
+        .skill-category-title {
+            color: var(--accent-silver);
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid rgba(192, 192, 192, 0.2);
+            font-family: var(--font-mono);
+            font-weight: 600;
+        }
+
+        .skill-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .skill-tag {
+            background: rgba(192, 192, 192, 0.08);
+            border: 1px solid rgba(192,192,192,0.15);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            cursor: default;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .skill-tag:hover {
+            background: rgba(192, 192, 192, 0.15);
+            color: var(--accent-light);
+            transform: translateY(-3px);
+            border-color: var(--accent-silver);
+            box-shadow: 0 5px 15px rgba(192, 192, 192, 0.1);
+        }
+
+        .skill-tag::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(16, 7, 30, 0.1), 
+                transparent);
+            transition: left 0.6s ease;
+        }
+
+        .skill-tag:hover::before {
+            left: 100%;
+        }
+
+        /* ========== PROJECT CARDS ========== */
+        #projects {
+            padding: 100px 0;
+            position: relative;
+        }
+
+        .project-card-3d {
+            background: var(--glass-bg);
+            backdrop-filter: blur(30px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            padding: 40px;
+            height: 100%;
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .project-card-3d::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(135deg, 
+                rgba(192, 192, 192, 0.2), 
+                rgba(144, 144, 144, 0.1), 
+                transparent);
+            border-radius: 30px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+            filter: blur(10px);
+        }
+
+        .project-card-3d:hover {
+            transform: translateY(-16px) scale(1.02);
+            border-color: rgba(192, 192, 192, 0.4);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8),
+                        0 0 60px rgba(192, 192, 192, 0.15);
+        }
+
+        .project-card-3d:hover::before {
+            opacity: 1;
+        }
+
+        .project-title {
+            color: var(--accent-silver);
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+
+        .project-card-3d:hover .project-title {
+            color: var(--accent-light);
+            text-shadow: 0 0 30px rgba(192, 192, 192, 0.4);
+        }
+
+        .project-card-3d p {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 20px;
+            flex: 1;
+        }
+
+        /* ========== ENHANCED TOOLTIP DESIGN ========== */
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .skill-tag:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(-50%) translateY(-5px);
+        }
+
+        .tooltip {
+            visibility: hidden;
+            position: absolute;
+            background: var(--glass-bg);
+            backdrop-filter: blur(30px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            text-align: center;
+            padding: 20px;
+            border-radius: 20px;
+            z-index: 1000;
+            font-size: 0.85rem;
+            font-family: var(--font-sans);
+            max-width: 320px;
+            width: max-content;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: var(--shadow-lg);
+            line-height: 1.5;
+            text-align: left;
+            pointer-events: none;
+            
+            /* Enhanced glow effects */
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.85),
+                    0 0 0 1px rgba(192, 192, 192, 0.15),
+                    0 0 40px rgba(192, 192, 192, 0.25),
+                    0 0 80px rgba(192, 192, 192, 0.12);
+        }
+
+        /* 3D effect similar to project cards */
+        .tooltip::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(135deg, 
+                rgba(224, 224, 224, 0.15), 
+                rgba(192, 192, 192, 0.1), 
+                rgba(144, 144, 144, 0.05),
+                transparent);
+            border-radius: 22px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+            filter: blur(14px);
+        }
+
+        .tooltip-container:hover .tooltip::before {
+            opacity: 1;
+        }
+
+        /* Shimmer glow effect on hover */
+        .tooltip-container:hover .tooltip {
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.9),
+                        0 0 0 1px rgba(212, 212, 212, 0.25),
+                        0 0 60px rgba(192, 192, 192, 0.35),
+                        0 0 120px rgba(192, 192, 192, 0.2);
+            border-color: rgba(212, 212, 212, 0.3);
+        }
+
+        /* Tooltip arrow */
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -8px;
+            border-width: 8px;
+            border-style: solid;
+            border-color: rgba(51, 48, 48, 0.8) transparent transparent transparent;
+            backdrop-filter: blur(20px);
+            filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.3));
+        }
+
+        .tooltip-container:hover .tooltip::after {
+            border-color: rgba(192, 192, 192, 0.3) transparent transparent transparent;
+        }
+
+        /* Tooltip content styling */
+        .tooltip strong {
+            color: var(--accent-light);
+            font-weight: 600;
+            display: block;
+            margin-bottom: 5px;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+        }
+
+        .tooltip p {
+            margin: 0;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ========== CONTACT SECTION ========== */
+        #contact {
+            padding: 100px 0;
+            text-align: center;
+            position: relative;
+        }
+
+        .contact-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(30px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            padding: 60px;
+            margin: 0 auto;
+            max-width: 800px;
+            box-shadow: var(--shadow-xl);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .contact-card h2 {
+            font-size: 3rem;
+            font-weight: 900;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, 
+                #e0e0e0 0%, 
+                #c0c0c0 50%,
+                #909090 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .contact-card p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            line-height: 1.8;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .social-links {
+            margin-top: 40px;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        .social-links a {
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 12px;
+            border-radius: 50%;
+            background: rgba(192, 192, 192, 0.05);
+            border: 1px solid rgba(192, 192, 192, 0.1);
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .social-links a:hover {
+            color: var(--accent-light);
+            background: rgba(192, 192, 192, 0.15);
+            transform: translateY(-5px) scale(1.1);
+            border-color: rgba(192, 192, 192, 0.3);
+            box-shadow: 0 10px 20px rgba(192, 192, 192, 0.2);
+        }
+
+        /* ========== FOOTER ========== */
+        footer {
+            padding: 80px 0 40px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            border-top: 1px solid rgba(192, 192, 192, 0.1);
+            background: linear-gradient(180deg, 
+                var(--bg-secondary) 0%, 
+                rgba(13, 13, 13, 0.8) 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        footer p {
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+
+        .footer-academic {
+            font-size: 1rem;
+            color: var(--accent-silver);
+            background: var(--glass-bg);
+            max-width: 800px;
+            margin: 30px auto;
+            line-height: 1.6;
+            padding: 20px;
+            border-top: 1px solid rgba(21, 18, 40, 0.1);
+            border-bottom: 1px solid rgba(39, 23, 15, 0.262);
+        }
+
+        /* ========== UTILITY CLASSES ========== */
+        .section-padding { padding: 100px 0; }
+        .text-accent { color: var(--accent-silver); }
+        .mb-3 { margin-bottom: 1rem; }
+        .mt-4 { margin-top: 1.5rem; }
+        .display-4 { font-size: 3.5rem; }
+        .fw-bold { font-weight: 700; }
+        .btn-lg { font-size: 1.1rem; padding: 18px 40px; }
+        
+        /* Typing effect */
+        .typing-container {
+            display: inline-block;
+            border-right: 2px solid var(--accent-silver);
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { border-color: transparent; }
+            50% { border-color: var(--accent-silver); }
+        }
+
+        /* Research Highlight */
+        .research-highlight {
+            background: linear-gradient(135deg, 
+                rgba(30, 30, 30, 0.6) 0%,
+                rgba(51, 48, 48, 0.8) 100%);
+            border-left: 4px solid var(--accent-silver);
+            padding: 25px;
+            margin: 40px 0;
+            border-radius: 0 15px 15px 0;
+        }
+
+        /* ========== RESPONSIVE DESIGN ========== */
+        @media (max-width: 1200px) {
+            .hero-title {
+                font-size: clamp(36px, 6vw, 70px);
+            }
+            
+            .hero-subtitle {
+                font-size: clamp(16px, 3vw, 24px);
+            }
+            
+            .skills-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 992px) {
+            .contact-card {
+                padding: 40px 30px;
+            }
+            
+            .contact-card h2 {
+                font-size: 2.5rem;
+            }
+            
+            .project-card-3d {
+                padding: 30px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                -webkit-text-size-adjust: 100%;
+                -ms-text-size-adjust: 100%;
+                text-size-adjust: 100%;
+            }
+            
+            /* Ensure images and media don't overflow */
+            img, video, iframe {
+                max-width: 100%;
+                height: auto;
+            }
+            
+            /* Better touch handling */
+            .skill-tag, .nav-link, .btn-primary-gradient {
+                touch-action: manipulation;
+            }
+            
+            .navbar-brand {
+                font-size: 1rem;
+                padding-left: 35px;
+            }
+            
+            .nav-link {
+                margin-left: 15px;
+                font-size: 0.85rem;
+                padding: 6px 12px;
+            }
+            
+            .hero-title {
+                font-size: clamp(32px, 8vw, 50px);
+                line-height: 1.2;
+            }
+            
+            .hero-subtitle {
+                font-size: clamp(16px, 4vw, 22px);
+                line-height: 1.5;
+            }
+            
+            .section-padding {
+                padding: 60px 0;
+            }
+            
+            .skills-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .skill-category-card {
+                padding: 30px;
+                min-height: auto;
+            }
+            
+            .skill-tags {
+                gap: 8px;
+            }
+            
+            .skill-tag {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+            
+            .contact-card {
+                padding: 30px 20px;
+                border-radius: 20px;
+            }
+            
+            .contact-card h2 {
+                font-size: 2rem;
+            }
+            
+            .social-links {
+                gap: 15px;
+                flex-wrap: wrap;
+            }
+            
+            .social-links a {
+                width: 50px;
+                height: 50px;
+                font-size: 1.2rem;
+            }
+            
+            .marquee, .research-marquee {
+                padding: 20px 0;
+                margin: 40px 0;
+            }
+            
+            .marquee-content, .research-marquee .marquee-content {
+                font-size: 0.9rem;
+                letter-spacing: 1px;
+            }
+            
+            /* FIXED: Correct project card padding and border-radius */
+            .project-card-3d {
+                padding: 30px;
+                border-radius: 20px;
+                min-height: auto;
+            }
+            
+            .project-title {
+                font-size: 1.3rem;
+            }
+            
+            .project-card-3d p {
+                font-size: 0.9rem;
+                line-height: 1.6;
+            }
+            
+            .footer-academic {
+                font-size: 0.9rem;
+                padding: 15px;
+                margin: 20px auto;
+            }
+            
+            footer {
+                padding: 50px 0 30px;
+            }
+            
+            /* Tooltip adjustments for mobile */
+            .tooltip {
+                max-width: 280px;
+                padding: 15px;
+                font-size: 0.8rem;
+            }
+            
+            /* Hero section mobile fixes */
+            #hero {
+                min-height: 100svh;
+                overflow: visible;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .hero-title {
+                font-size: clamp(28px, 7vw, 40px);
+            }
+            
+            .hero-subtitle {
+                font-size: clamp(14px, 3.5vw, 18px);
+            }
+            
+            .research-highlight {
+                padding: 20px;
+                margin: 30px 0;
+            }
+            
+            .marquee-content, .research-marquee .marquee-content {
+                font-size: 0.8rem;
+                letter-spacing: 0.5px;
+            }
+            
+            .skill-category-title {
+                font-size: 1.1rem;
+            }
+            
+            .btn-primary-gradient {
+                padding: 14px 28px;
+                font-size: 0.85rem;
+            }
+            
+            .contact-card p {
+                font-size: 1rem;
+            }
+            
+            .tooltip {
+                max-width: 250px;
+                font-size: 0.75rem;
+                padding: 12px;
+            }
+            
+            /* Additional mobile fixes */
+            .container {
+                padding-left: 15px;
+                padding-right: 15px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .navbar-brand {
+                font-size: 0.9rem;
+                padding-left: 30px;
+            }
+            
+            .nav-link {
+                margin-left: 10px;
+                font-size: 0.8rem;
+                padding: 5px 10px;
+            }
+            
+            .hero-title {
+                font-size: clamp(24px, 6vw, 36px);
+            }
+            
+            .skill-tag {
+                padding: 5px 10px;
+                font-size: 0.75rem;
+            }
+            
+            .social-links a {
+                width: 45px;
+                height: 45px;
+                font-size: 1.1rem;
+            }
+            
+            .tooltip {
+                max-width: 220px;
+            }
+        }
+
+        /* Touch device optimizations */
+        @media (hover: none) and (pointer: coarse) {
+            .skill-tag:hover, 
+            .project-card-3d:hover, 
+            .btn-primary-gradient:hover,
+            .nav-link:hover {
+                transform: none;
+            }
+            
+            .skill-tag:active, 
+            .project-card-3d:active {
+                transform: scale(0.98);
+            }
+            
+            .tooltip-container:active .tooltip {
+                visibility: visible;
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div class="loading-screen">
+        <div class="quantum-loader"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="#">Applied Social Data Scientist</a>
+            <button class="navbar-toggler navbar-dark" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link active" href="#hero">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="about.html">About</a></li>
+                    <li class="nav-item"><a class="nav-link" href="projects.html">Research Projects</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#skills">Skills</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <!-- Hero Section -->
+        <section id="hero">
+            <div id="particleCanvas"></div>
+            <div class="hero-glow"></div>
+            <div class="container hero-content">
+                <div class="row">
+                    <div class="col-lg-10">
+                        <h1 class="hero-title">Computational Social Scientist:<br><span style="color: var(--text-secondary);"> Grounded in social science research.</span></h1>
+                        <p class="hero-subtitle mt-4">
+                            <span class="typing-container" id="typing-text"></span>
+                        </p>
+                        <div class="research-highlight">
+                            <p style="color: var(--accent-light); font-style: italic;">
+                                "Research interests include inequality, digital discourse, social stratification, 
+                                and data-driven policy analysis. Key methods include statistical modeling, NLP, 
+                                supervised learning, and longitudinal analysis."
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Research Interests Marquee -->
+        <div class="marquee research-marquee">
+            <div class="marquee-content">
+                RESEARCH INTERESTS: SOCIAL INEQUALITY • DIGITAL DISCOURSE ANALYSIS • STRATIFICATION RESEARCH • 
+                POLICY IMPACT ANALYSIS • LONGITUDINAL STUDIES • NETWORK ANALYSIS • TEXT AS DATA • 
+                SURVEY METHODOLOGY • COMPUTATIONAL SOCIAL SCIENCE •
+            </div>
+        </div>
+
+        <!-- Projects Section -->
+        <section id="projects" class="section-padding">
+            <div class="container">
+                <h2 class="section-title"><span class="text-accent"></span> Current Projects</h2>
+                <div class="row g-4">
+                    <div class="col-md-6 col-lg-4">
+                        <div class="project-card-3d">
+                            <h3 class="project-title">Predictive Analytics</h3>
+                            <p>This project develops an end-to-end machine learning pipeline designed to predict real-time customer behavior and purchase intent using session-based interaction data. The workflow includes data cleaning, feature engineering, and the construction of predictive variables such as session duration, click patterns, page navigation sequences, and engagement intensity to model conversion likelihood. Multiple classification models are evaluated and tuned to optimize predictive performance, with a focus on interpretability and deployment readiness for real-time inference. The final pipeline supports scalable decision-making for personalized targeting and marketing optimization, contributing to a measurable 34% increase in conversion rate compared to baseline strategies.</p>
+                            <div class="mt-3">
+
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="project-card-3d">
+                            <h3 class="project-title">Human & Machine social interaction</h3>
+                            <p>This work will examines algorithmic systems as contemporary instruments of governance that reproduce inequality while presenting themselves as politically neutral technologies. Drawing on Gramsci's cultural hegemony and Deleuze's control societies, it argues that algorithms do not simply automate decisions but actively construct ideological frameworks that legitimize racialized and neoliberal forms of exclusion. Focusing on immigration enforcement, border control, and welfare distribution, the analysis shows how predictive analytics, risk-scoring, and fraud detection systems disproportionately target marginalized groups while obscuring accountability through proprietary "black-box" infrastructures. Building on scholars such as Eubanks, Benjamin, and Couldry, the study frames algorithmic governance as a form of data colonialism that converts lived experience into statistical categories, masking systemic injustice under the rhetoric of efficiency and objectivity.</p>
+                            <div class="mt-3">
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Skills Section -->
+        <section id="skills" class="section-padding">
+            <div class="container">
+                <h2 class="section-title"><span class="text-accent"></span> Technical Skills</h2>
+                
+                <div class="skills-grid">
+                    <!-- Quantitative & Qualitative Methods -->
+                    <div class="skill-category-card">
+                        <h3 class="skill-category-title">Research Methods</h3>
+                        <div class="skill-tags">
+                            <span class="skill-tag tooltip-container">Quantitative Data Analysis
+                                <div class="tooltip">
+                                    <strong>Quantitative Data Analysis</strong>
+                                    <p>Statistical analysis of numerical data using quantitative techniques including regression, hypothesis testing, and descriptive statistics.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Qualitative Research
+                                <div class="tooltip">
+                                    <strong>Qualitative Research</strong>
+                                    <p>In-depth analysis of non-numerical data for contextual understanding using methods like interviews, focus groups, and content analysis.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Thematic Analysis
+                                <div class="tooltip">
+                                    <strong>Thematic Analysis</strong>
+                                    <p>Identifying, analyzing, and reporting patterns (themes) within qualitative data to understand underlying meanings and experiences.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Statistical Inference
+                                <div class="tooltip">
+                                    <strong>Statistical Inference</strong>
+                                    <p>Drawing conclusions about populations from sample data using probability theory and statistical methods.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Hypothesis Testing
+                                <div class="tooltip">
+                                    <strong>Hypothesis Testing</strong>
+                                    <p>Formal procedures for validating research hypotheses using statistical evidence and p-values.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Research Design
+                                <div class="tooltip">
+                                    <strong>Research Design</strong>
+                                    <p>Planning and structuring research studies to ensure validity, reliability, and ethical considerations.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Measurement
+                                <div class="tooltip">
+                                    <strong>Measurement</strong>
+                                    <p>Developing reliable and valid measurement instruments for social science research.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Survey Analysis
+                                <div class="tooltip">
+                                    <strong>Survey Analysis</strong>
+                                    <p>Analyzing survey data with appropriate statistical methods including weighting and missing data handling.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Questionnaire Design
+                                <div class="tooltip">
+                                    <strong>Questionnaire Design</strong>
+                                    <p>Creating effective survey instruments for data collection with attention to validity and response quality.</p>
+                                </div>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Data Science & ML -->
+                    <div class="skill-category-card">
+                        <h3 class="skill-category-title">Data Science & ML</h3>
+                        <div class="skill-tags">
+                            <span class="skill-tag tooltip-container">Data Cleaning
+                                <div class="tooltip">
+                                    <strong>Data Cleaning</strong>
+                                    <p>Preprocessing and preparing data for analysis by handling missing values, outliers, and inconsistencies.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Preprocessing
+                                <div class="tooltip">
+                                    <strong>Preprocessing</strong>
+                                    <p>Transforming raw data into analyzable format through normalization, encoding, and feature scaling.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Exploratory Data Analysis
+                                <div class="tooltip">
+                                    <strong>Exploratory Data Analysis</strong>
+                                    <p>Initial investigation of data to discover patterns, spot anomalies, and test assumptions.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Regression Analysis
+                                <div class="tooltip">
+                                    <strong>Regression Analysis</strong>
+                                    <p>Modeling relationships between variables to understand how independent variables affect dependent variables.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Supervised Learning
+                                <div class="tooltip">
+                                    <strong>Supervised Learning</strong>
+                                    <p>Training models on labeled data to make predictions or classifications.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Unsupervised Learning
+                                <div class="tooltip">
+                                    <strong>Unsupervised Learning</strong>
+                                    <p>Finding patterns and structure in unlabeled data through clustering and dimensionality reduction.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Clustering
+                                <div class="tooltip">
+                                    <strong>Clustering</strong>
+                                    <p>Grouping similar data points together based on their characteristics.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Natural Language Processing
+                                <div class="tooltip">
+                                    <strong>Natural Language Processing</strong>
+                                    <p>Computational analysis of human language for tasks like sentiment analysis and topic modeling.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Feature Engineering
+                                <div class="tooltip">
+                                    <strong>Feature Engineering</strong>
+                                    <p>Creating informative features for ML models to improve predictive performance.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Model Evaluation
+                                <div class="tooltip">
+                                    <strong>Model Evaluation</strong>
+                                    <p>Assessing model performance and validity using metrics like accuracy, precision, and recall.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Imbalanced Data
+                                <div class="tooltip">
+                                    <strong>Imbalanced Data</strong>
+                                    <p>Handling datasets with uneven class distributions using techniques like SMOTE or weighted loss functions.</p>
+                                </div>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Technical Tools -->
+                    <div class="skill-category-card">
+                        <h3 class="skill-category-title">Technical Tools</h3>
+                        <div class="skill-tags">
+                            <span class="skill-tag tooltip-container">Python
+                                <div class="tooltip">
+                                    <strong>Python</strong>
+                                    <p>Primary programming language for data analysis, machine learning, and statistical modeling.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">R
+                                <div class="tooltip">
+                                    <strong>R</strong>
+                                    <p>Statistical computing and graphics environment for data analysis and visualization.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">SQL
+                                <div class="tooltip">
+                                    <strong>SQL</strong>
+                                    <p>Database querying and management for extracting and manipulating structured data.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">SPSS
+                                <div class="tooltip">
+                                    <strong>SPSS</strong>
+                                    <p>Statistical analysis software for social science research with comprehensive analytical capabilities.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Stata
+                                <div class="tooltip">
+                                    <strong>Stata</strong>
+                                    <p>Statistical software for data science with strong econometric and social science applications.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Jupyter Notebooks
+                                <div class="tooltip">
+                                    <strong>Jupyter Notebooks</strong>
+                                    <p>Interactive computational environment for creating and sharing documents with live code.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">RStudio
+                                <div class="tooltip">
+                                    <strong>RStudio</strong>
+                                    <p>Integrated development environment for R with tools for visualization and reporting.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Git
+                                <div class="tooltip">
+                                    <strong>Git</strong>
+                                    <p>Version control system for tracking changes in code and collaborative development.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Version Control
+                                <div class="tooltip">
+                                    <strong>Version Control</strong>
+                                    <p>Managing changes to code and documents over time for reproducibility and collaboration.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Excel
+                                <div class="tooltip">
+                                    <strong>Excel</strong>
+                                    <p>Spreadsheet analysis and visualization tool for data manipulation and reporting.</p>
+                                </div>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Data Types -->
+                    <div class="skill-category-card">
+                        <h3 class="skill-category-title">Data Types & Sources</h3>
+                        <div class="skill-tags">
+                            <span class="skill-tag tooltip-container">Text Data
+                                <div class="tooltip">
+                                    <strong>Text Data</strong>
+                                    <p>Analysis of written content and documents using NLP techniques and qualitative methods.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Social Media Data
+                                <div class="tooltip">
+                                    <strong>Social Media Data</strong>
+                                    <p>Data from social platforms for social research including Twitter, Facebook, and Reddit.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Census Data
+                                <div class="tooltip">
+                                    <strong>Census Data</strong>
+                                    <p>Official population and demographic data for regional and national analysis.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Administrative Data
+                                <div class="tooltip">
+                                    <strong>Administrative Data</strong>
+                                    <p>Official records and administrative sources for policy evaluation and social research.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Survey Data
+                                <div class="tooltip">
+                                    <strong>Survey Data</strong>
+                                    <p>Systematically collected questionnaire data for social science and market research.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Longitudinal Data
+                                <div class="tooltip">
+                                    <strong>Longitudinal Data</strong>
+                                    <p>Data collected over time from same subjects for studying change and development.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Panel Data
+                                <div class="tooltip">
+                                    <strong>Panel Data</strong>
+                                    <p>Multi-dimensional data with time component for analyzing complex relationships.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Geospatial Data
+                                <div class="tooltip">
+                                    <strong>Geospatial Data</strong>
+                                    <p>Location-based data with geographic information for spatial analysis and mapping.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Public Policy Data
+                                <div class="tooltip">
+                                    <strong>Public Policy Data</strong>
+                                    <p>Datasets relevant to policy analysis including government reports and impact evaluations.</p>
+                                </div>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Professional Competencies -->
+                    <div class="skill-category-card">
+                        <h3 class="skill-category-title">Research Competencies</h3>
+                        <div class="skill-tags">
+                            <span class="skill-tag tooltip-container">Literature Review
+                                <div class="tooltip">
+                                    <strong>Literature Review</strong>
+                                    <p>Systematic examination of existing research to establish context and identify gaps.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Synthesis
+                                <div class="tooltip">
+                                    <strong>Synthesis</strong>
+                                    <p>Integrating findings from multiple sources to develop comprehensive understanding.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Reproducible Workflows
+                                <div class="tooltip">
+                                    <strong>Reproducible Workflows</strong>
+                                    <p>Creating replicable research processes using version control and documentation.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Documentation
+                                <div class="tooltip">
+                                    <strong>Documentation</strong>
+                                    <p>Thorough recording of research processes, decisions, and methodologies.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Reporting
+                                <div class="tooltip">
+                                    <strong>Reporting</strong>
+                                    <p>Communicating research findings effectively through written reports and presentations.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Ethical Data Use
+                                <div class="tooltip">
+                                    <strong>Ethical Data Use</strong>
+                                    <p>Adhering to ethical guidelines in research including informed consent and data protection.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Privacy Awareness
+                                <div class="tooltip">
+                                    <strong>Privacy Awareness</strong>
+                                    <p>Protecting sensitive data and identities through anonymization and secure handling.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Interdisciplinary Collaboration
+                                <div class="tooltip">
+                                    <strong>Interdisciplinary Collaboration</strong>
+                                    <p>Working across academic disciplines to address complex social questions.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Knowledge Translation
+                                <div class="tooltip">
+                                    <strong>Knowledge Translation</strong>
+                                    <p>Converting research findings into practical insights for policymakers and practitioners.</p>
+                                </div>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Specialized Methods -->
+                    <div class="skill-category-card">
+                        <h3 class="skill-category-title">Advanced Methods</h3>
+                        <div class="skill-tags">
+                            <span class="skill-tag tooltip-container">Causal Inference
+                                <div class="tooltip">
+                                    <strong>Causal Inference</strong>
+                                    <p>Identifying cause-effect relationships using methods like RCTs, matching, and instrumental variables.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Multilevel Modeling
+                                <div class="tooltip">
+                                    <strong>Multilevel Modeling</strong>
+                                    <p>Analyzing nested data structures like students within schools or patients within hospitals.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Time Series Analysis
+                                <div class="tooltip">
+                                    <strong>Time Series Analysis</strong>
+                                    <p>Analyzing data points ordered in time to identify trends, seasonality, and patterns.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Text Mining
+                                <div class="tooltip">
+                                    <strong>Text Mining</strong>
+                                    <p>Extracting information and patterns from text data using computational methods.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Sentiment Analysis
+                                <div class="tooltip">
+                                    <strong>Sentiment Analysis</strong>
+                                    <p>Determining emotional tone in text to understand opinions, attitudes, and emotions.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Topic Modeling
+                                <div class="tooltip">
+                                    <strong>Topic Modeling</strong>
+                                    <p>Discovering abstract topics in text collections using algorithms like LDA.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Network Analysis
+                                <div class="tooltip">
+                                    <strong>Network Analysis</strong>
+                                    <p>Studying relationships between entities through network theory and graph algorithms.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Spatial Analysis
+                                <div class="tooltip">
+                                    <strong>Spatial Analysis</strong>
+                                    <p>Analyzing geographic patterns and relationships using GIS and spatial statistics.</p>
+                                </div>
+                            </span>
+                            <span class="skill-tag tooltip-container">Bayesian Methods
+                                <div class="tooltip">
+                                    <strong>Bayesian Methods</strong>
+                                    <p>Statistical inference using Bayes' theorem to update probabilities based on new evidence.</p>
+                                </div>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact" class="section-padding">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8">
+                        <div class="contact-card">
+                            <h2 class="display-4 fw-bold mb-4">Get in Touch</h2>
+                            <p class="mb-5">
+                            Whether you're interested in research collaboration, methodological consultation, or professional opportunities, feel free to reach out. I welcome conversations at the intersection of social science, statistics, and applied data science.
+                            </p>
+                            <a href="coohamza5@gmail.com" class="btn btn-primary-gradient btn-lg">Say Hello</a>
+                            
+                            <div class="social-links mt-5">
+                                <a href="https://www.linkedin.com/in/hamzah-~a-198a7269/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                                    <i class="bi bi-linkedin"></i>
+                                </a>
+                                <a href="coohamza5@gmail.com" aria-label="Email">
+                                    <i class="bi bi-envelope"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p class="footer-academic">
+               Interdisciplinary training in Sociology, Statistics, Public Policy, and Applied Digital Sociology, focused on computational social research.
+            </p>
+            <p>&copy; 2026 Ahm Hamzah</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+
+    <!-- JavaScript -->
+    <script>
+        // ========== LOADING SCREEN ==========
+        const Loader = {
+            init() {
+                const loadingScreen = document.querySelector('.loading-screen');
+                
+                window.addEventListener('load', () => {
+                    setTimeout(() => {
+                        if (loadingScreen) {
+                            loadingScreen.classList.add('hidden');
+                            this.animateHero();
+                            this.initTypingEffect();
+                        }
+                    }, 800);
+                });
+                
+                // Fallback timeout
+                setTimeout(() => {
+                    if (loadingScreen && !loadingScreen.classList.contains('hidden')) {
+                        loadingScreen.classList.add('hidden');
+                        this.animateHero();
+                        this.initTypingEffect();
+                    }
+                }, 3000);
+            },
+
+            animateHero() {
+                gsap.from(".hero-content > *", {
+                    y: 30,
+                    opacity: 0,
+                    duration: 1,
+                    stagger: 0.2,
+                    ease: "power3.out"
+                });
+            },
+
+            initTypingEffect() {
+                const text = "Experienced in statistical inference, supervised learning, and translating social questions into measurable, data-driven analyses that support evidence-based decision making.";
+                const typingElement = document.getElementById('typing-text');
+                
+                if (typingElement) {
+                    gsap.to(typingElement, {
+                        text: text,
+                        duration: 3,
+                        ease: "none",
+                        delay: 0.5
+                    });
+                }
+            }
+        };
+
+        // ========== 3D PARTICLE SYSTEM ==========
+        const Particles = {
+            init() {
+                const container = document.getElementById('particleCanvas');
+                if(!container) return;
+
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 1000);
+                const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+                
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                container.appendChild(renderer.domElement);
+
+                // Create Particles
+                const geometry = new THREE.BufferGeometry();
+                const count = 2000;
+                const posArray = new Float32Array(count * 3);
+
+                for(let i = 0; i < count * 3; i++) {
+                    posArray[i] = (Math.random() - 0.5) * 20;
+                }
+
+                geometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+                const material = new THREE.PointsMaterial({
+                    size: 0.02,
+                    color: 0xc0c0c0,
+                    transparent: true,
+                    opacity: 0.9
+                });
+
+                const particlesMesh = new THREE.Points(geometry, material);
+                scene.add(particlesMesh);
+                camera.position.z = 5;
+
+                // Mouse Interaction
+                let mouseX = 0;
+                let mouseY = 0;
+
+                document.addEventListener('pointermove', (e) => {
+                    mouseX = e.clientX / window.innerWidth - 0.5;
+                    mouseY = e.clientY / window.innerHeight - 0.5;
+                });
+
+                // Animation Loop
+                const animate = () => {
+                    requestAnimationFrame(animate);
+                    
+                    particlesMesh.rotation.y += 0.001;
+                    particlesMesh.rotation.x += 0.001;
+
+                    particlesMesh.rotation.y += 0.05 * (mouseX - particlesMesh.rotation.y);
+                    particlesMesh.rotation.x += 0.05 * (mouseY - particlesMesh.rotation.x);
+
+                    renderer.render(scene, camera);
+                };
+
+                animate();
+
+                window.addEventListener('resize', () => {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            }
+        };
+
+        // ========== SCROLL ANIMATIONS ==========
+        const ScrollAnimations = {
+            init() {
+                gsap.registerPlugin(ScrollTrigger);
+                
+                // Animate skill categories on scroll
+                gsap.utils.toArray('.skill-category-card').forEach((card, i) => {
+                    gsap.from(card, {
+                        scrollTrigger: {
+                            trigger: card,
+                            start: 'top 85%',
+                            toggleActions: 'play none none reverse'
+                        },
+                        y: 30,
+                        opacity: 0,
+                        duration: 0.8,
+                        delay: i * 0.1,
+                        ease: 'power2.out'
+                    });
+                });
+                
+                // Parallax effect for hero
+                gsap.to('.hero-glow', {
+                    scrollTrigger: {
+                        trigger: '#hero',
+                        start: 'top top',
+                        end: 'bottom top',
+                        scrub: true
+                    },
+                    y: 100,
+                    ease: "none"
+                });
+                
+                // Animate project cards
+                gsap.utils.toArray('.project-card-3d').forEach((card, i) => {
+                    gsap.from(card, {
+                        scrollTrigger: {
+                            trigger: card,
+                            start: 'top 80%',
+                            toggleActions: 'play none none reverse'
+                        },
+                        y: 50,
+                        opacity: 0,
+                        duration: 0.8,
+                        delay: i * 0.1,
+                        ease: 'power2.out'
+                    });
+                });
+            }
+        };
+
+        // ========== NAVBAR SCROLL EFFECT ==========
+        const NavbarEffect = {
+            init() {
+                window.addEventListener('scroll', () => {
+                    const navbar = document.querySelector('.navbar');
+                    if (navbar) {
+                        if (window.scrollY > 50) {
+                            navbar.classList.add('scrolled');
+                        } else {
+                            navbar.classList.remove('scrolled');
+                        }
+                    }
+                });
+            }
+        };
+
+        // ========== TOOLTIP POSITIONING ==========
+        const TooltipManager = {
+            init() {
+                const tooltipContainers = document.querySelectorAll('.tooltip-container');
+                
+                tooltipContainers.forEach(container => {
+                    const tooltip = container.querySelector('.tooltip');
+                    if (!tooltip) return;
+                    
+                    container.addEventListener('mouseenter', () => {
+                        // Adjust position if near screen edge
+                        const rect = container.getBoundingClientRect();
+                        const tooltipWidth = tooltip.offsetWidth;
+                        const screenWidth = window.innerWidth;
+                        
+                        if (rect.left + tooltipWidth / 2 > screenWidth - 20) {
+                            tooltip.style.left = 'auto';
+                            tooltip.style.right = '0';
+                            tooltip.style.transform = 'none';
+                            tooltip.style.marginRight = '10px';
+                        } else if (rect.left - tooltipWidth / 2 < 20) {
+                            tooltip.style.left = '0';
+                            tooltip.style.transform = 'none';
+                            tooltip.style.marginLeft = '10px';
+                        } else {
+                            tooltip.style.left = '50%';
+                            tooltip.style.right = 'auto';
+                            tooltip.style.transform = 'translateX(-50%)';
+                            tooltip.style.marginRight = '0';
+                            tooltip.style.marginLeft = '0';
+                        }
+                    });
+                });
+                
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    this.adjustAllTooltips();
+                });
+            },
+            
+            adjustAllTooltips() {
+                const tooltipContainers = document.querySelectorAll('.tooltip-container');
+                tooltipContainers.forEach(container => {
+                    const tooltip = container.querySelector('.tooltip');
+                    if (!tooltip) return;
+                    
+                    // Reset position for recalculation
+                    tooltip.style.left = '50%';
+                    tooltip.style.right = 'auto';
+                    tooltip.style.transform = 'translateX(-50%)';
+                    tooltip.style.marginRight = '0';
+                    tooltip.style.marginLeft = '0';
+                });
+            }
+        };
+
+        // ========== MOBILE MENU HANDLER ==========
+        const MobileMenu = {
+            init() {
+                const navLinks = document.querySelectorAll('.nav-link');
+                const navbarToggler = document.querySelector('.navbar-toggler');
+                const navbarCollapse = document.querySelector('.navbar-collapse');
+                
+                // Close mobile menu when clicking a link
+                navLinks.forEach(link => {
+                    link.addEventListener('click', () => {
+                        if (window.innerWidth < 992) {
+                            const bsCollapse = new bootstrap.Collapse(navbarCollapse);
+                            bsCollapse.hide();
+                        }
+                    });
+                });
+                
+                // Handle window resize
+                window.addEventListener('resize', () => {
+                    if (window.innerWidth >= 992) {
+                        navbarCollapse.classList.add('show');
+                    }
+                });
+            }
+        };
+
+        // ========== TOOLTIP GLOW EFFECT ENHANCEMENT ==========
+        const TooltipGlowEffect = {
+            init() {
+                const tooltipContainers = document.querySelectorAll('.tooltip-container');
+                
+                tooltipContainers.forEach(container => {
+                    const tooltip = container.querySelector('.tooltip');
+                    if (!tooltip) return;
+                    
+                    container.addEventListener('mouseenter', () => {
+                        // Add shimmer animation to tooltip
+                        tooltip.style.animation = 'tooltipShimmer 3s infinite linear';
+                    });
+                    
+                    container.addEventListener('mouseleave', () => {
+                        tooltip.style.animation = 'none';
+                    });
+                });
+                
+                // Add shimmer keyframes dynamically
+                const styleSheet = document.createElement('style');
+                styleSheet.textContent = `
+                    @keyframes tooltipShimmer {
+                        0% {
+                            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7),
+                                        0 0 0 1px rgba(192, 192, 192, 0.1),
+                                        0 0 30px rgba(192, 192, 192, 0.1);
+                        }
+                        50% {
+                            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8),
+                                        0 0 0 1px rgba(224, 224, 224, 0.25),
+                                        0 0 40px rgba(212, 212, 212, 0.3),
+                                        0 0 60px rgba(192, 192, 192, 0.2);
+                        }
+                        100% {
+                            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7),
+                                        0 0 0 1px rgba(192, 192, 192, 0.1),
+                                        0 0 30px rgba(192, 192, 192, 0.1);
+                        }
+                    }
+                `;
+                document.head.appendChild(styleSheet);
+            }
+        };
+
+        // ========== TOUCH DEVICE SUPPORT ==========
+        if ('ontouchstart' in window) {
+            document.body.classList.add('touch-device');
+            
+            // Improved touch support without preventing scrolling
+            document.addEventListener('touchstart', function(e) {
+                // Only add touch feedback to interactive elements
+                if (e.target.tagName === 'BUTTON' || 
+                    e.target.tagName === 'A' || 
+                    e.target.classList.contains('btn-primary-gradient')) {
+                    // Small delay for better touch feedback
+                    setTimeout(function() {
+                        e.target.style.transform = 'scale(0.98)';
+                        setTimeout(function() {
+                            e.target.style.transform = '';
+                        }, 150);
+                    }, 0);
+                }
+            }, { passive: true });
+            
+            // Add touch feedback for skill tags
+            document.querySelectorAll('.skill-tag').forEach(tag => {
+                tag.addEventListener('touchstart', function() {
+                    this.style.transform = 'scale(0.95)';
+                });
+                
+                tag.addEventListener('touchend', function() {
+                    setTimeout(() => {
+                        this.style.transform = '';
+                    }, 150);
+                });
+            });
+        }
+
+        // ========== INITIALIZATION ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            Loader.init();
+            Particles.init();
+            ScrollAnimations.init();
+            NavbarEffect.init();
+            TooltipManager.init();
+            MobileMenu.init();
+            TooltipGlowEffect.init();
+        });
+    </script>
+
+</body>
+</html>

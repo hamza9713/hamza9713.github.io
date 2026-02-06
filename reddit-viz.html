@@ -1,0 +1,3247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reddit Discourse Power Analysis - Interactive Visualization</title>
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <!-- Load Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    
+    <!-- Load GSAP for animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.4/gsap.min.js"></script>
+    
+    <style>
+        :root {
+            /*  Theme */
+            --bg-primary: #101015;
+            --bg-secondary: #0f0f1a;
+            --bg-card: rgba(20, 20, 30, 0.85);
+            --text-primary: #ffffff;
+            --text-secondary: #d4d4dc;
+            --text-muted: #a0a0b0;
+            
+            /* Vibrant Color Palette for Orbitals */
+            --vibrant-gold: #ffd700;
+            --vibrant-silver: #c0c0c0;
+            --vibrant-bronze: #cd7f32;
+            --vibrant-velvet: #9370db;
+            --vibrant-moonstone: #73c2fb;
+            --vibrant-emerald: #50c878;
+            --vibrant-ruby: #e0115f;
+            --vibrant-sapphire: #0f52ba;
+            
+            /*  Accent Colors - Muted & Distinguished */
+            --accent-silver: #ffffff;
+            --accent-iron: #b2b2b9;
+            --accent-steel: #6a6a7a;
+            --accent-gold: #c8b080;
+            --accent-bronze: #a89070;
+            --accent-velvet: #5a4a6a;
+            --accent-onyx: #3a3a4a;
+            --accent-marble: #e0e0e8;
+            --accent-obsidian: #2a2a3a;
+            --accent-moonstone: #9a9ac8;
+            --accent-ash: #7a7a8a;
+            --accent-smoke: #4a4a5a;
+            
+            /* Connection Colors */
+            --connection-primary: #a090c0;
+            --connection-secondary: #8080a0;
+            --connection-glow: rgba(160, 144, 192, 0.5);
+            
+            --glass-bg: rgba(30, 30, 40, 0.25);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.7);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.8);
+            --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.9);
+            --shadow-xl: 0 24px 64px rgba(0, 0, 0, 1);
+            --font-mono: 'Courier New', 'JetBrains Mono', monospace;
+            --font-sans: 'Arial', 'Inter', sans-serif;
+            --font-gothic: 'Times New Roman', serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+            overflow-x: hidden;
+            line-height: 1.8;
+            min-height: 100vh;
+            position: relative;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(42, 42, 58, 0.15) 0%, transparent 20%),
+                radial-gradient(circle at 85% 30%, rgba(58, 58, 78, 0.1) 0%, transparent 20%),
+                linear-gradient(to bottom, rgba(10, 10, 15, 0.8), rgba(15, 15, 25, 0.9));
+        }
+
+        /* Canvas Background */
+        #three-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Navigation -  Style */
+        .navbar {
+            background: linear-gradient(to bottom, 
+                rgba(15, 15, 25, 0.95), 
+                rgba(10, 10, 20, 0.9));
+            backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 18px 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .navbar.scrolled {
+            background: rgba(10, 10, 20, 0.98);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+            border-bottom: 1px solid var(--accent-steel);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            color: var(--accent-marble) !important;
+            font-family: var(--font-mono);
+            font-weight: 600;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+            position: relative;
+            padding-left: 40px;
+            text-decoration: none;
+            text-transform: uppercase;
+        }
+
+        .navbar-brand::before {
+            content: '†';
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.4rem;
+            color: var(--accent-gold);
+            font-weight: normal;
+        }
+
+        .navbar-brand::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 40px;
+            width: 0;
+            height: 1px;
+            background: linear-gradient(90deg, var(--accent-gold), transparent);
+            transition: width 0.4s ease;
+        }
+
+        .navbar-brand:hover::after {
+            width: calc(100% - 40px);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 25px;
+        }
+
+        .nav-link {
+            color: var(--accent-silver) !important;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            position: relative;
+            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 2px;
+            text-decoration: none;
+            text-transform: uppercase;
+            border: 1px solid transparent;
+        }
+
+        .nav-link:hover {
+            color: var(--accent-marble) !important;
+            border: 1px solid var(--accent-steel);
+            background: rgba(30, 30, 40, 0.3);
+        }
+
+        /* Hero Section -  Elegance */
+        .research-hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 160px 0 80px;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, 
+                rgba(10, 10, 20, 0.7) 0%,
+                rgba(15, 15, 30, 0.5) 100%);
+        }
+
+        .hero-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70vw;
+            height: 70vh;
+            background: radial-gradient(circle at center, 
+                rgba(184, 184, 200, 0.08) 0%,
+                rgba(138, 138, 154, 0.04) 40%,
+                transparent 70%);
+            filter: blur(80px);
+            opacity: 0.6;
+            z-index: -1;
+            animation: gentlePulse 12s ease-in-out infinite;
+        }
+
+        @keyframes gentlePulse {
+            0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.05); }
+        }
+
+        .hero-tag {
+            font-family: var(--font-mono);
+            color: var(--accent-silver);
+            font-size: 0.9rem;
+            margin-bottom: 30px;
+            display: inline-block;
+            padding: 10px 24px;
+            background: rgba(20, 20, 30, 0.4);
+            border: 1px solid var(--accent-steel);
+            border-radius: 1px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-tag::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(200, 176, 128, 0.1), 
+                transparent);
+            transition: left 0.8s ease;
+        }
+
+        .hero-tag:hover::before {
+            left: 100%;
+        }
+
+        .hero-title {
+            font-size: clamp(3rem, 8vw, 5.5rem);
+            font-weight: 300;
+            line-height: 1.1;
+            margin-bottom: 40px;
+            color: var(--accent-marble);
+            font-family: var(--font-gothic);
+            letter-spacing: 1px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+            position: relative;
+        }
+
+        .hero-title::after {
+            content: '';
+            position: absolute;
+            bottom: -15px;
+            left: 0;
+            width: 120px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-gold), transparent);
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1.2rem, 3vw, 1.8rem);
+            color: var(--accent-silver);
+            max-width: 800px;
+            line-height: 1.7;
+            margin-bottom: 50px;
+            font-weight: 300;
+            letter-spacing: 0.5px;
+        }
+
+        /* Controls -  Style */
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin: 50px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, 
+                rgba(42, 42, 58, 0.3), 
+                rgba(30, 30, 45, 0.2));
+            color: var(--accent-marble);
+            border: 1px solid var(--accent-steel);
+            padding: 16px 36px;
+            font-size: 1rem;
+            border-radius: 1px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+            font-family: var(--font-mono);
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(200, 176, 128, 0.15), 
+                transparent);
+            transition: left 0.8s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent-gold);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            background: linear-gradient(135deg, 
+                rgba(58, 58, 78, 0.4), 
+                rgba(42, 42, 58, 0.3));
+        }
+
+        .btn-secondary {
+            border-color: var(--accent-velvet);
+            color: var(--accent-silver);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-bronze);
+        }
+
+        /* Research Cards -  Style */
+        .research-section {
+            padding: 120px 0;
+            position: relative;
+        }
+
+        .section-label {
+            font-family: var(--font-mono);
+            color: var(--accent-silver);
+            font-size: 0.8rem;
+            margin-bottom: 50px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            display: inline-block;
+            padding: 12px 30px;
+            background: rgba(20, 20, 30, 0.4);
+            border: 1px solid var(--accent-steel);
+            border-radius: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .findings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin: 50px 0;
+        }
+
+        .finding-card {
+            background: linear-gradient(135deg, 
+                rgba(30, 30, 45, 0.4), 
+                rgba(20, 20, 35, 0.6));
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--accent-steel);
+            border-radius: 2px;
+            padding: 40px;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .finding-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(184, 184, 200, 0.1), 
+                transparent);
+            transition: left 0.8s ease;
+        }
+
+        .finding-card:hover::before {
+            left: 100%;
+        }
+
+        .finding-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--accent-gold);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+        }
+
+        .finding-icon {
+            font-size: 2rem;
+            margin-bottom: 25px;
+            color: var(--accent-gold);
+            display: inline-block;
+            padding: 12px;
+            background: rgba(200, 176, 128, 0.1);
+            border: 1px solid var(--accent-bronze);
+        }
+
+        .finding-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: var(--accent-marble);
+            font-family: var(--font-gothic);
+            letter-spacing: 0.5px;
+        }
+
+        .finding-card p {
+            color: var(--accent-silver);
+            line-height: 1.7;
+            font-size: 1rem;
+        }
+
+        .highlight {
+            color: var(--accent-gold);
+            font-weight: 500;
+        }
+
+        /* Insights Section */
+        .insights-section {
+            background: linear-gradient(135deg, 
+                rgba(40, 40, 55, 0.2), 
+                rgba(30, 30, 45, 0.3));
+            border-radius: 2px;
+            padding: 60px;
+            margin: 80px 0;
+            border: 1px solid var(--accent-steel);
+            backdrop-filter: blur(20px);
+            position: relative;
+        }
+
+        .insight-item {
+            margin-bottom: 25px;
+            padding: 30px;
+            background: rgba(25, 25, 40, 0.4);
+            border-radius: 1px;
+            border-left: 3px solid var(--accent-gold);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .insight-item:hover {
+            transform: translateX(5px);
+            background: rgba(30, 30, 45, 0.6);
+        }
+
+        .insight-title {
+            color: var(--accent-marble);
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: var(--font-mono);
+        }
+
+        .insight-content {
+            color: var(--accent-silver);
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        /* Methodology */
+        .methodology {
+            background: linear-gradient(135deg, 
+                rgba(35, 35, 50, 0.2), 
+                rgba(25, 25, 40, 0.3));
+            border-radius: 2px;
+            padding: 60px;
+            margin: 80px 0;
+            border: 1px solid var(--accent-steel);
+            backdrop-filter: blur(20px);
+        }
+
+        .method-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+        }
+
+        .method-step {
+            background: rgba(25, 25, 40, 0.4);
+            padding: 30px;
+            border-radius: 1px;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            position: relative;
+        }
+
+        .method-step:hover {
+            transform: translateY(-5px);
+            border: 1px solid var(--accent-gold);
+            background: rgba(30, 30, 45, 0.6);
+        }
+
+        .step-number {
+            width: 50px;
+            height: 50px;
+            background: var(--accent-onyx);
+            color: var(--accent-gold);
+            border-radius: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin: 0 auto 20px;
+            font-family: var(--font-mono);
+            font-size: 1.2rem;
+            border: 1px solid var(--accent-bronze);
+        }
+
+        /* Enhanced Modal Styling */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(5, 5, 10, 0.98);
+            backdrop-filter: blur(30px);
+            z-index: 2000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal {
+            background: linear-gradient(135deg, 
+                rgba(25, 25, 40, 0.95), 
+                rgba(15, 15, 30, 0.98));
+            backdrop-filter: blur(40px);
+            border: 1px solid var(--accent-steel);
+            border-radius: 2px;
+            width: 95%;
+            height: 90vh;
+            overflow: hidden;
+            box-shadow: var(--shadow-xl);
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .modal.active {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            padding: 24px 36px;
+            border-bottom: 1px solid var(--accent-steel);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(20, 20, 35, 0.8);
+            backdrop-filter: blur(20px);
+        }
+
+        .modal-header h2 {
+            color: var(--accent-marble);
+            font-size: 1.8rem;
+            font-family: var(--font-gothic);
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        /* Enhanced Close Button - Gothic Style */
+        .close-btn {
+            background: linear-gradient(135deg, 
+                rgba(42, 42, 58, 0.3), 
+                rgba(30, 30, 45, 0.2));
+            border: 1px solid var(--accent-steel);
+            color: var(--accent-silver);
+            font-size: 1.4rem;
+            cursor: pointer;
+            padding: 10px 14px;
+            border-radius: 1px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(200, 176, 128, 0.2), 
+                transparent);
+            transition: left 0.6s ease;
+        }
+
+        .close-btn:hover::before {
+            left: 100%;
+        }
+
+        .close-btn:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-marble);
+            transform: rotate(90deg);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .modal-body {
+            height: calc(90vh - 80px);
+            position: relative;
+        }
+
+        #viz-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Enhanced Visualization Controls */
+        .viz-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, 
+                rgba(25, 25, 40, 0.9), 
+                rgba(20, 20, 35, 0.95));
+            backdrop-filter: blur(30px);
+            border: 1px solid var(--accent-steel);
+            border-radius: 2px;
+            padding: 24px;
+            width: 280px;
+            z-index: 100;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        }
+
+        .control-section {
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid var(--accent-steel);
+        }
+
+        .control-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .control-section h3 {
+            color: var(--accent-marble);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .view-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .view-btn {
+            background: rgba(42, 42, 58, 0.3);
+            border: 1px solid var(--accent-steel);
+            border-radius: 1px;
+            padding: 12px;
+            color: var(--accent-silver);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            text-align: center;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .view-btn:hover {
+            background: rgba(58, 58, 78, 0.5);
+            border-color: var(--accent-gold);
+            color: var(--accent-marble);
+        }
+
+        .view-btn.active {
+            background: linear-gradient(135deg, 
+                rgba(200, 176, 128, 0.15), 
+                rgba(168, 144, 112, 0.1));
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+        }
+
+        /* Enhanced Tooltip - Compact & Responsive */
+        .tooltip {
+            position: absolute;
+            background: linear-gradient(135deg, 
+                rgba(30, 30, 45, 0.98), 
+                rgba(25, 25, 40, 0.98));
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--accent-steel);
+            border-radius: 4px;
+            padding: 12px 16px;
+            max-width: 280px;
+            min-width: 220px;
+            color: var(--accent-silver);
+            z-index: 1000;
+            pointer-events: none;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            font-size: 12px;
+            line-height: 1.5;
+            font-family: var(--font-sans);
+        }
+
+        .tooltip h3 {
+            color: var(--accent-marble);
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-family: var(--font-gothic);
+            font-weight: 300;
+            border-bottom: 1px solid var(--accent-steel);
+            padding-bottom: 6px;
+            line-height: 1.3;
+        }
+
+        .tooltip p {
+            font-size: 11px;
+            margin-bottom: 10px;
+            color: var(--accent-silver);
+            line-height: 1.4;
+        }
+
+        .tooltip .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .tooltip .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(138, 138, 154, 0.2);
+            font-size: 11px;
+            align-items: center;
+        }
+
+        .tooltip .stat-label {
+            color: var(--accent-iron);
+            font-weight: 500;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .tooltip .stat-value {
+            color: var(--accent-marble);
+            font-weight: 600;
+            font-family: var(--font-mono);
+            font-size: 11px;
+        }
+
+        /* ESC Key Indicator */
+        .esc-indicator {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, 
+                rgba(42, 42, 58, 0.8), 
+                rgba(30, 30, 45, 0.9));
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--accent-gold);
+            border-radius: 4px;
+            padding: 8px 16px;
+            color: var(--accent-gold);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+            opacity: 0.8;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(200, 176, 128, 0.2);
+        }
+
+        .esc-indicator:hover {
+            opacity: 1;
+            transform: translateX(-50%) scale(1.05);
+        }
+
+        .esc-indicator .key {
+            background: var(--accent-onyx);
+            border: 1px solid var(--accent-gold);
+            padding: 4px 10px;
+            border-radius: 2px;
+            font-weight: 600;
+            color: var(--accent-marble);
+        }
+
+        /* Loading Screen */
+        .loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, 
+                rgba(15, 15, 25, 0.98), 
+                rgba(10, 10, 20, 0.98));
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 2px solid var(--accent-steel);
+            border-radius: 1px;
+            border-top-color: var(--accent-gold);
+            animation: spin 1.5s linear infinite;
+            margin-bottom: 24px;
+        }
+
+        /* Enhanced Data Display */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
+            margin: 50px 0;
+        }
+
+        .data-card {
+            background: linear-gradient(135deg, 
+                rgba(35, 35, 50, 0.4), 
+                rgba(25, 25, 40, 0.6));
+            border: 1px solid var(--accent-steel);
+            border-radius: 1px;
+            padding: 30px;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .data-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-gold);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 50px 20px;
+            margin-top: 80px;
+            border-top: 1px solid var(--accent-steel);
+            color: var(--accent-iron);
+            font-size: 0.9rem;
+            font-family: var(--font-mono);
+            letter-spacing: 1px;
+            background: rgba(10, 10, 20, 0.5);
+        }
+
+        /* Interactive Orbs - Subtle */
+        .interactive-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(40px);
+            opacity: 0.15;
+            animation: floatOrb 30s ease-in-out infinite;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .orb-1 {
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, 
+                rgba(184, 184, 200, 0.1), 
+                rgba(138, 138, 154, 0.05), 
+                transparent);
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, 
+                rgba(200, 176, 128, 0.08), 
+                rgba(168, 144, 112, 0.04), 
+                transparent);
+            top: 60%;
+            right: 10%;
+            animation-delay: 10s;
+        }
+
+        .orb-3 {
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, 
+                rgba(154, 154, 200, 0.06), 
+                rgba(122, 122, 138, 0.03), 
+                transparent);
+            bottom: 20%;
+            left: 50%;
+            animation-delay: 20s;
+        }
+
+        @keyframes floatOrb {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(80px, -60px) scale(1.1); }
+            66% { transform: translate(-60px, 80px) scale(0.95); }
+        }
+
+        /* Scroll Progress */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                var(--accent-steel), 
+                var(--accent-gold), 
+                var(--accent-steel));
+            transform-origin: left;
+            transform: scaleX(0);
+            z-index: 9998;
+        }
+
+        /* Mobile Optimizations */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 12px 0;
+            }
+            
+            .nav-container {
+                padding: 0 15px;
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+            
+            .navbar-brand {
+                font-size: 1rem;
+                padding-left: 32px;
+            }
+            
+            .nav-links {
+                gap: 12px;
+                flex-wrap: wrap;
+                justify-content: flex-start;
+                width: 100%;
+            }
+            
+            .nav-link {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+            
+            /* Hero Section */
+            .research-hero {
+                padding: 140px 0 40px;
+                min-height: 90vh;
+            }
+            
+            .hero-title {
+                font-size: 2.2rem;
+                margin-bottom: 30px;
+            }
+            
+            .hero-title::after {
+                width: 80px;
+            }
+            
+            .hero-subtitle {
+                font-size: 1.1rem;
+                margin-bottom: 30px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                gap: 12px;
+                margin: 30px 0;
+            }
+            
+            .btn {
+                width: 100%;
+                padding: 14px 20px;
+                font-size: 0.95rem;
+                justify-content: center;
+            }
+            
+            /* Research Sections */
+            .research-section {
+                padding: 60px 0;
+            }
+            
+            .section-label {
+                font-size: 0.75rem;
+                padding: 10px 20px;
+                letter-spacing: 3px;
+                margin-bottom: 30px;
+            }
+            
+            .findings-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                margin: 30px 0;
+            }
+            
+            .finding-card {
+                padding: 25px;
+            }
+            
+            .finding-icon {
+                font-size: 1.5rem;
+                padding: 10px;
+                margin-bottom: 20px;
+            }
+            
+            .finding-card h3 {
+                font-size: 1.2rem;
+            }
+            
+            /* Insights & Methodology */
+            .insights-section,
+            .methodology {
+                padding: 30px;
+                margin: 40px 0;
+            }
+            
+            .insight-item {
+                padding: 20px;
+                margin-bottom: 15px;
+            }
+            
+            .insight-title {
+                font-size: 1rem;
+            }
+            
+            .insight-content {
+                font-size: 0.9rem;
+            }
+            
+            .method-steps {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .method-step {
+                padding: 20px;
+            }
+            
+            .step-number {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+                margin-bottom: 15px;
+            }
+            
+            /* Modal */
+            .modal {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                border: none;
+            }
+            
+            .modal-header {
+                padding: 16px 20px;
+            }
+            
+            .modal-header h2 {
+                font-size: 1.2rem;
+            }
+            
+            .close-btn {
+                width: 40px;
+                height: 40px;
+                padding: 8px;
+                font-size: 1.2rem;
+            }
+            
+            /* Visualization Controls */
+            .viz-controls {
+                position: relative;
+                top: 0;
+                right: 0;
+                width: calc(100% - 32px);
+                margin: 16px;
+                padding: 20px;
+                max-width: none;
+            }
+            
+            .control-section h3 {
+                font-size: 0.85rem;
+            }
+            
+            .view-buttons {
+                grid-template-columns: 1fr;
+            }
+            
+            .view-btn {
+                padding: 14px;
+                font-size: 0.85rem;
+            }
+            
+            /* Enhanced Tooltip for Mobile */
+            .tooltip {
+                max-width: 85vw !important;
+                padding: 10px 12px !important;
+                border-radius: 4px;
+                font-size: 11px !important;
+                position: fixed !important;
+                transform: translate(-50%, 0) !important;
+                top: 10px !important;
+                left: 50% !important;
+                margin: 0 auto;
+                text-align: center;
+                pointer-events: auto;
+                z-index: 10000;
+                display: none !important;
+                line-height: 1.4;
+            }
+
+            .tooltip h3 {
+                font-size: 12px !important;
+                margin-bottom: 6px;
+                padding-bottom: 4px;
+            }
+
+            .tooltip p {
+                font-size: 10px !important;
+                margin-bottom: 8px;
+                line-height: 1.3;
+            }
+
+            .tooltip .stats {
+                grid-template-columns: 1fr !important;
+                gap: 6px;
+                margin-top: 8px;
+            }
+
+            .tooltip .stat-item {
+                font-size: 10px;
+                padding: 4px 0;
+            }
+
+            .tooltip .stat-label {
+                font-size: 9px;
+            }
+
+            .tooltip .stat-value {
+                font-size: 10px;
+            }
+
+            .esc-indicator {
+                bottom: 10px;
+                padding: 6px 12px;
+                font-size: 10px;
+            }
+
+            .esc-indicator .key {
+                padding: 3px 8px;
+                font-size: 10px;
+            }
+            
+            /* Interactive Orbs */
+            .interactive-orb {
+                filter: blur(30px);
+                opacity: 0.1;
+            }
+            
+            .orb-1,
+            .orb-2,
+            .orb-3 {
+                width: 150px;
+                height: 150px;
+            }
+            
+            .hero-glow {
+                width: 100vw;
+                height: 100vh;
+                filter: blur(40px);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .content-wrapper {
+                padding: 0 12px;
+            }
+            
+            .hero-title {
+                font-size: 1.8rem;
+            }
+            
+            .hero-subtitle {
+                font-size: 1rem;
+            }
+            
+            .hero-tag {
+                font-size: 0.8rem;
+                padding: 8px 16px;
+            }
+            
+            .finding-card {
+                padding: 20px;
+            }
+            
+            .insights-section,
+            .methodology {
+                padding: 20px;
+            }
+            
+            .tooltip {
+                max-width: 90vw !important;
+                padding: 8px 10px !important;
+                font-size: 10px !important;
+            }
+
+            .tooltip h3 {
+                font-size: 11px !important;
+            }
+
+            .tooltip p {
+                font-size: 9px !important;
+            }
+
+            .tooltip .stat-item {
+                font-size: 9px;
+            }
+
+            .esc-indicator {
+                padding: 5px 10px;
+                font-size: 9px;
+            }
+        }
+
+        /* Landscape mode for mobile */
+        @media (max-height: 600px) and (orientation: landscape) {
+            .research-hero {
+                min-height: 120vh;
+            }
+            
+            .modal {
+                height: 100vh;
+            }
+            
+            .viz-controls {
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+            
+            .tooltip {
+                top: 5px !important;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+            
+            .esc-indicator {
+                bottom: 5px;
+            }
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Particle Background Canvas -->
+    <canvas id="three-bg"></canvas>
+    
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="projects.html" class="navbar-brand">
+                <i class="bi bi-arrow-left"></i> BACK TO PROJECTS
+            </a>
+            <div class="nav-links">
+                <a href="#" class="nav-link" id="view-data">
+                    <i class="bi bi-database"></i> DATA
+                </a>
+                <a href="#" class="nav-link" id="launch-viz">
+                    <i class="bi bi-graph-up-arrow"></i> VISUALIZE
+                </a>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Scroll Progress -->
+    <div class="scroll-progress" id="scroll-progress"></div>
+
+    <div class="content-wrapper">
+        <!-- Hero Section -->
+        <section class="research-hero">
+            <div class="hero-glow"></div>
+            <div class="interactive-orb orb-1"></div>
+            <div class="interactive-orb orb-2"></div>
+            <div class="interactive-orb orb-3"></div>
+            
+            <div>
+                
+                <h1 class="hero-title">
+                    Reddit Discourse Analysis
+                </h1>
+                <p class="hero-subtitle">
+                    An interactive exploration of conversational power dynamics, sentiment patterns, 
+                    and community structures across seven major Reddit communities. This research-grade 
+                    visualization reveals how influence, emotion, and discourse shape online social spaces.
+                </p>
+                
+                <div class="controls">
+                    <button class="btn" id="launch-viz-btn">
+                        <i class="bi bi-graph-up-arrow"></i>
+                        LAUNCH VISUALIZATION
+                    </button>
+                    <button class="btn btn-secondary" id="view-data-btn">
+                        <i class="bi bi-database"></i>
+                        ANALYSIS OVERVIEW
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Research Narrative -->
+        <section class="research-section" id="research">
+            <div class="section-label">
+                <i class="bi bi-search-heart"></i> RESEARCH OVERVIEW
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 40px; margin-bottom: 80px;">
+                <div class="finding-card">
+                    <h3>Investigating Conversational Power Dynamics</h3>
+                    <p>
+                        This project investigates how conversational power and discursive dynamics are structured 
+                        within and across various Reddit communities. Grounded in the broader research question of 
+                        how dominant or marginalized users, themes, and rhetorical styles emerge within different 
+                        online social spaces, the analysis focuses on reply networks, sentiment expression, and 
+                        community structure.
+                    </p>
+                    <p>
+                        By constructing user interaction graphs based on comment threads and applying network 
+                        centrality and community detection algorithms, we examine which users hold influence within 
+                        each subreddit and how their emotional tone and thematic engagement relate to their position 
+                        in the social graph.
+                    </p>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                    <div class="finding-card">
+                        <div style="font-size: 1rem; font-weight: 1000; color: var(--accent-marble); margin-bottom: 5px; font-family: var(--font-mono);">7</div>
+                        <div style="font-size: 0.6rem; color: var(--accent-silver);">Subreddits</div>
+                    </div>
+                    <div class="finding-card">
+                        <div style="font-size: 1rem; font-weight: 1000; color: var(--accent-marble); margin-bottom: 5px; font-family: var(--font-mono);">8k+</div>
+                        <div style="font-size: 0.6rem; color: var(--accent-silver);">Users</div>
+                    </div>
+                    <div class="finding-card">
+                        <div style="font-size: 1rem; font-weight: 1000; color: var(--accent-marble); margin-bottom: 5px; font-family: var(--font-mono);">12k+</div>
+                        <div style="font-size: 0.6rem; color: var(--accent-silver);">Interactions</div>
+                    </div>
+                    <div class="finding-card">
+                        <div style="font-size: 1rem; font-weight: 1000; color: var(--accent-marble); margin-bottom: 5px; font-family: var(--font-mono);">4</div>
+                        <div style="font-size: 0.6rem; color: var(--accent-silver);">Dimensions</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Key Findings -->
+        <section class="research-section">
+            <div class="section-label">
+                <i class="bi bi-lightning"></i> KEY FINDINGS
+            </div>
+            
+            <div class="findings-grid">
+                <div class="finding-card">
+                    <div class="finding-icon">
+                        <i class="bi bi-lightning"></i>
+                    </div>
+                    <h3>Power Concentration & Centralization</h3>
+                    <p>
+                        <span class="highlight">r/relationships exhibits highest centralization (0.1023)</span>, 
+                        indicating a star-like network structure where few users dominate discourse. In contrast, 
+                        r/politics maintains distributed influence despite massive scale. Top 3 users in r/Conservative 
+                        control 21.4% of influence, revealing varying power structures across communities.
+                    </p>
+                </div>
+                
+                <div class="finding-card">
+                    <div class="finding-icon">
+                        <i class="bi bi-emoji-smile"></i>
+                    </div>
+                    <h3>Sentiment-Expression Patterns</h3>
+                    <p>
+                        Influential users in <span class="highlight">r/Libertarian show positive correlation between power and sentiment (0.11658 mean)</span>, 
+                        while r/MensRights exhibits negative sentiment among high-power users (-0.06843). Weak correlation 
+                        between influence and sentiment overall suggests conversational dominance doesn't predict emotional tone.
+                    </p>
+                </div>
+                
+                <div class="finding-card">
+                    <div class="finding-icon">
+                        <i class="bi bi-puzzle"></i>
+                    </div>
+                    <h3>Community Fragmentation & Structure</h3>
+                    <p>
+                        <span class="highlight">r/politics contains 223 distinct communities</span>, indicating high ideological pluralism. 
+                        r/Feminism shows highest modularity (0.9057), suggesting fragmented discourse, while r/MensRights 
+                        has lowest modularity (0.7281), indicating echo-chamber dynamics with unified conversation patterns.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Research Insights -->
+        <section class="insights-section">
+            <h2 style="color: var(--accent-marble); font-size: 2rem; margin-bottom: 40px; display: flex; align-items: center; gap: 12px; font-family: var(--font-gothic);">
+                <i class="bi bi-lightbulb"></i> Key Research Insights
+            </h2>
+            
+            <div class="insight-item">
+                <div class="insight-title">
+                    <i class="bi bi-graph-up"></i> Power and Positivity Correlation
+                </div>
+                <div class="insight-content">
+                    Subreddits like r/politics and r/Libertarian stand out for their highest mean sentiment among 
+                    top influential users (PageRank scores of 0.10324 and 0.11658 respectively). This suggests that 
+                    the most influential users in these political subreddits tend to express more positive or hopeful 
+                    sentiment, possibly reflecting persuasive rhetorical styles or ideological optimism.
+                </div>
+            </div>
+            
+            <div class="insight-item">
+                <div class="insight-title">
+                    <i class="bi bi-activity"></i> Weak Power-Sentiment Correlation
+                </div>
+                <div class="insight-content">
+                    Across all subreddits, correlation coefficients between PageRank/Degree and sentiment polarity 
+                    are small, mostly close to zero or slightly negative. r/AmItheAsshole shows almost no correlation 
+                    (0.0012), while r/relationships displays mild negative relationship (-0.0419). Being central 
+                    in the reply network doesn't reliably predict sentiment tone.
+                </div>
+            </div>
+            
+            <div class="insight-item">
+                <div class="insight-title">
+                    <i class="bi bi-people"></i> Peripheral Emotional Extremes
+                </div>
+                <div class="insight-content">
+                    Authors with extreme sentiment scores (±1.0) across all subreddits generally have low PageRank 
+                    scores, indicating limited influence or reply engagement. This suggests that highly emotional 
+                    posts—whether supportive or hostile—may not garner broad interaction or may come from peripheral 
+                    voices rather than central influencers.
+                </div>
+            </div>
+            
+            <div class="insight-item">
+                <div class="insight-title">
+                    <i class="bi bi-building"></i> Unique Community Architectures
+                </div>
+                <div class="insight-content">
+                    Each subreddit reveals unique structural patterns: r/relationships shows star-like centralization 
+                    with emotional depth, r/Feminism exhibits fragmented but egalitarian discourse, r/MensRights displays 
+                    unified echo-chamber structure, and r/politics maintains pluralistic diversity despite massive scale. 
+                    These architectures reflect distinct community norms and interaction patterns.
+                </div>
+            </div>
+        </section>
+
+        <!-- Methodology -->
+        <section class="methodology">
+            <h3 style="color: var(--accent-marble); margin-bottom: 40px; font-size: 1.5rem; display: flex; align-items: center; gap: 12px; font-family: var(--font-gothic);">
+                <i class="bi bi-cpu"></i> Methodological Framework
+            </h3>
+            <div class="method-steps">
+                <div class="method-step">
+                    <div class="step-number">1</div>
+                    <div style="color: var(--accent-marble); font-weight: 500; margin-bottom: 10px; font-family: var(--font-mono);">DATA COLLECTION</div>
+                    <div style="color: var(--accent-silver); font-size: 0.9rem;">7 subreddits, 8,000+ users, 12,000+ interactions</div>
+                </div>
+                <div class="method-step">
+                    <div class="step-number">2</div>
+                    <div style="color: var(--accent-marble); font-weight: 500; margin-bottom: 10px; font-family: var(--font-mono);">NETWORK CONSTRUCTION</div>
+                    <div style="color: var(--accent-silver); font-size: 0.9rem;">Reply networks using NetworkX, PageRank analysis</div>
+                </div>
+                <div class="method-step">
+                    <div class="step-number">3</div>
+                    <div style="color: var(--accent-marble); font-weight: 500; margin-bottom: 10px; font-family: var(--font-mono);">SENTIMENT ANALYSIS</div>
+                    <div style="color: var(--accent-silver); font-size: 0.9rem;">VADER sentiment scoring, emotional pattern mapping</div>
+                </div>
+                <div class="method-step">
+                    <div class="step-number">4</div>
+                    <div style="color: var(--accent-marble); font-weight: 500; margin-bottom: 10px; font-family: var(--font-mono);">COMMUNITY DETECTION</div>
+                    <div style="color: var(--accent-silver); font-size: 0.9rem;">Louvain modularity, structural hole identification</div>
+                </div>
+                <div class="method-step">
+                    <div class="step-number">5</div>
+                    <div style="color: var(--accent-marble); font-weight: 500; margin-bottom: 10px; font-family: var(--font-mono);">VISUAL ANALYTICS</div>
+                    <div style="color: var(--accent-silver); font-size: 0.9rem;">Three.js interactive 3D visualization, comparative analysis</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Data Overview -->
+        <div class="data-grid" id="data-overview" style="display: none;">
+            <!-- Data will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Modal for Visualization -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <h2><i class="bi bi-graph-up-arrow"></i> INTERACTIVE DISCOURSE EXPLORER</h2>
+                <button class="close-btn" id="close-modal">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="loading" id="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading visualization and network data...</p>
+                </div>
+                <div id="viz-canvas"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile detection
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isSmallScreen = window.innerWidth <= 768;
+
+        // Particle Background - Gothic Theme
+        (() => {
+            const canvas = document.getElementById('three-bg');
+            if (!canvas) return;
+
+            const particleCount = isMobile ? 6000 : 15000;
+            
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 8;
+            
+            const renderer = new THREE.WebGLRenderer({ 
+                canvas, 
+                alpha: true, 
+                antialias: !isMobile,
+                powerPreference: isMobile ? "default" : "high-performance" 
+            });
+            
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            //  color particles
+            const particleLayers = [];
+            const layerConfigs = isMobile ? [
+                { count: Math.floor(particleCount * 0.6), size: 0.0010, color: 0xb8b8c8, opacity: 0.2, speed: 0.0003 },
+                { count: Math.floor(particleCount * 0.3), size: 0.015, color: 0x8a8a9a, opacity: 0.15, speed: 0.0005 },
+                { count: Math.floor(particleCount * 0.1), size: 0.020, color: 0x6a6a7a, opacity: 0.1, speed: 0.0002 }
+            ] : [
+                { count: Math.floor(particleCount * 0.6), size: 0.0010, color: 0xb8b8c8, opacity: 0.25, speed: 0.0005 },
+                { count: Math.floor(particleCount * 0.3), size: 0.020, color: 0x8a8a9a, opacity: 0.2, speed: 0.0008 },
+                { count: Math.floor(particleCount * 0.1), size: 0.025, color: 0x6a6a7a, opacity: 0.15, speed: 0.0003 }
+            ];
+
+            layerConfigs.forEach(config => {
+                const positions = new Float32Array(config.count * 3);
+                
+                for (let i = 0; i < config.count; i++) {
+                    const i3 = i * 3;
+                    positions[i3] = (Math.random() - 0.5) * (isMobile ? 25 : 40);
+                    positions[i3 + 1] = (Math.random() - 0.5) * (isMobile ? 25 : 40);
+                    positions[i3 + 2] = (Math.random() - 0.5) * (isMobile ? 25 : 40);
+                }
+
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                
+                const material = new THREE.PointsMaterial({
+                    size: config.size,
+                    color: config.color,
+                    transparent: true,
+                    opacity: config.opacity,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                });
+
+                const particles = new THREE.Points(geometry, material);
+                scene.add(particles);
+                particleLayers.push({ particles, speed: config.speed });
+            });
+
+            // Animation Loop
+            const clock = new THREE.Clock();
+            function animate() {
+                const elapsed = clock.getElapsedTime();
+                
+                particleLayers.forEach((layer, index) => {
+                    layer.particles.rotation.y = elapsed * layer.speed;
+                    layer.particles.rotation.x = elapsed * layer.speed * 0.3;
+                    if (!isMobile && index === 0) {
+                        layer.particles.position.y = Math.sin(elapsed * 0.2) * 0.3;
+                    }
+                });
+                
+                renderer.render(scene, camera);
+                requestAnimationFrame(animate);
+            }
+            animate();
+
+            // Window resize handler
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                }, 250);
+            });
+        })();
+
+        // ==========  VISUALIZATION CLASS ==========
+        class GothicDiscourseVisualizer {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                this.raycaster = new THREE.Raycaster();
+                this.mouse = new THREE.Vector2();
+                
+                // Data
+                this.subredditData = null;
+                
+                // Visualization state
+                this.currentView = 'network';
+                this.activeSubreddit = null;
+                this.hoveredObject = null;
+                
+                // Objects
+                this.nodes = [];
+                this.edges = [];
+                this.particles = [];
+                this.connections = [];
+                this.orbitals = [];
+                this.tooltip = null;
+                this.controlsPanel = null;
+                this.escIndicator = null;
+                
+                // Vibrant Color Palette
+                this.colors = {
+                    relationships: 0xffd700,    // Vibrant Gold
+                    Conservative: 0xe0115f,     // Vibrant Ruby
+                    Libertarian: 0x50c878,      // Vibrant Emerald
+                    MensRights: 0x9370db,       // Vibrant Velvet
+                    Feminism: 0x73c2fb,         // Vibrant Moonstone
+                    politics: 0x0f52ba,         // Vibrant Sapphire
+                    AmItheAsshole: 0xc0c0c0     // Vibrant Silver
+                };
+
+                // Connection colors (more vibrant)
+                this.connectionColors = {
+                    primary: 0x9370db,
+                    secondary: 0x73c2fb,
+                    highlight: 0xffd700
+                };
+                
+                // Animation
+                this.animationId = null;
+                this.time = 0;
+            }
+            
+            async loadAllData() {
+                try {
+                    console.log('Loading network data...');
+                    this.processData();
+                    return true;
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                    this.createResearchData();
+                    return false;
+                }
+            }
+            
+            processData() {
+                this.subredditData = [
+                    { 
+                        name: 'r/relationships', 
+                        shortName: 'relationships',
+                        nodes: 260, edges: 257, sentimentScore: 0.04,
+                        communities: 61, modularity: 0.91, degreeCentralization: 0.1023,
+                        pagerankCentralization: 0.0888, density: 0.0038,
+                        dominantUsers: [
+                            { user: 'Professional_Grab313', power: 0.0516, sentiment: -0.0716 },
+                            { user: 'ssugarliciouss', power: 0.0441, sentiment: 0.1360 },
+                            { user: 'classicicedtea', power: 0.0413, sentiment: 0.0643 }
+                        ],
+                        color: this.colors.relationships,
+                        connectionColor: this.connectionColors.highlight,
+                        keyPhrases: ['sound like', 'feel like', 'dont know', 'dont think', 'make feel'],
+                        position: { x: -25, y: 5, z: 0 },
+                        description: "Highest centralization (0.1023) - star-like network structure where few users dominate discourse. Shows complex emotional dynamics with both positive and negative influential users."
+                    },
+                    { 
+                        name: 'r/Conservative', 
+                        shortName: 'Conservative',
+                        nodes: 302, edges: 387, sentimentScore: 0.02,
+                        communities: 39, modularity: 0.76, degreeCentralization: 0.0660,
+                        pagerankCentralization: 0.0391, density: 0.0043,
+                        dominantUsers: [
+                            { user: 'Hectoriu', power: 0.0740, sentiment: 0.0853 },
+                            { user: 'triggernaut', power: 0.0733, sentiment: 0.0667 },
+                            { user: 'mahvel50', power: 0.0669, sentiment: -0.0881 }
+                        ],
+                        color: this.colors.Conservative,
+                        connectionColor: this.connectionColors.primary,
+                        keyPhrases: ['insurance company', 'health insurance', 'look like', 'day care'],
+                        position: { x: -15, y: -8, z: 15 },
+                        description: "Moderate centralization with cohesive discourse. Top 3 users control 21.4% of influence. Shows mixed sentiment among influential voices with both optimistic and critical perspectives."
+                    },
+                    { 
+                        name: 'r/Libertarian', 
+                        shortName: 'Libertarian',
+                        nodes: 404, edges: 525, sentimentScore: 0.08,
+                        communities: 56, modularity: 0.85, degreeCentralization: 0.0447,
+                        pagerankCentralization: 0.0206, density: 0.0032,
+                        dominantUsers: [
+                            { user: 'yzkv_7', power: 0.0675, sentiment: 0.0637 },
+                            { user: 'BringBackUsenet', power: 0.0670, sentiment: 0.0761 },
+                            { user: 'sheep5555', power: 0.0636, sentiment: -0.0224 }
+                        ],
+                        color: this.colors.Libertarian,
+                        connectionColor: this.connectionColors.secondary,
+                        keyPhrases: ['dont care', 'dont think', 'free market', 'dont want'],
+                        position: { x: 0, y: 20, z: -10 },
+                        description: "Distributed influence with positive sentiment correlation (0.11658 mean among top users). Shows positive power-sentiment relationship, suggesting optimistic ideological expression among influential voices."
+                    },
+                    { 
+                        name: 'r/MensRights', 
+                        shortName: 'MensRights',
+                        nodes: 318, edges: 495, sentimentScore: 0.04,
+                        communities: 43, modularity: 0.73, degreeCentralization: 0.0999,
+                        pagerankCentralization: 0.0148, density: 0.0049,
+                        dominantUsers: [
+                            { user: '63daddy', power: 0.1094, sentiment: 0.1223 },
+                            { user: 'thelucklessking', power: 0.0958, sentiment: 0.0904 },
+                            { user: 'SidewaysGiraffe', power: 0.0934, sentiment: 0.0653 }
+                        ],
+                        color: this.colors.MensRights,
+                        connectionColor: this.connectionColors.primary,
+                        keyPhrases: ['men woman', 'woman men', 'men right', 'men dont'],
+                        position: { x: 15, y: 0, z: 12 },
+                        description: "Lowest modularity (0.7281) - unified echo-chamber structure. Shows negative sentiment among high-power users (-0.06843 mean). Mild positive correlation between degree centrality and sentiment (0.0525)."
+                    },
+                    { 
+                        name: 'r/Feminism', 
+                        shortName: 'Feminism',
+                        nodes: 322, edges: 357, sentimentScore: 0.00,
+                        communities: 80, modularity: 0.91, degreeCentralization: 0.0445,
+                        pagerankCentralization: 0.0141, density: 0.0035,
+                        dominantUsers: [
+                            { user: 'VivaSiciliani', power: 0.0622, sentiment: -0.0255 },
+                            { user: 'hadenoughoverit336', power: 0.0542, sentiment: 0.1083 },
+                            { user: 'uuuuuummmmm_actually', power: 0.0512, sentiment: -0.0586 }
+                        ],
+                        color: this.colors.Feminism,
+                        connectionColor: this.connectionColors.secondary,
+                        keyPhrases: ['drag queen', 'dont think', 'feel like', 'trans woman'],
+                        position: { x: 25, y: -10, z: -8 },
+                        description: "Highest modularity (0.9057) - fragmented but egalitarian discourse. Shows modest positivity among top users (0.0438) with weak negative correlation between power and sentiment."
+                    },
+                    { 
+                        name: 'r/politics', 
+                        shortName: 'politics',
+                        nodes: 3533, edges: 4607, sentimentScore: -0.15,
+                        communities: 223, modularity: 0.84, degreeCentralization: 0.0339,
+                        pagerankCentralization: 0.0127, density: 0.0004,
+                        dominantUsers: [
+                            { user: 'No-Post4444', power: 0.0908, sentiment: -0.0132 },
+                            { user: 'Ancient_Popcorn', power: 0.0852, sentiment: -0.0296 },
+                            { user: 'B-Z_B-S', power: 0.0815, sentiment: -0.0319 }
+                        ],
+                        color: this.colors.politics,
+                        connectionColor: this.connectionColors.primary,
+                        keyPhrases: ['epstein file', 'dont know', 'dont think', 'gon na'],
+                        position: { x: -10, y: 15, z: -15 },
+                        description: "Largest network with 223 distinct communities - highest ideological pluralism. Most negative sentiment (-0.15) with distributed influence despite massive scale. Maintains diverse subcommunities."
+                    },
+                    { 
+                        name: 'r/AmItheAsshole', 
+                        shortName: 'AmItheAsshole',
+                        nodes: 1742, edges: 2160, sentimentScore: -0.03,
+                        communities: 218, modularity: 0.91, degreeCentralization: 0.0408,
+                        pagerankCentralization: 0.0294, density: 0.0007,
+                        dominantUsers: [
+                            { user: 'Abba_Zaba_', power: 0.0519, sentiment: -0.0308 },
+                            { user: 'witx', power: 0.0442, sentiment: 0.3000 },
+                            { user: 'Solivagant0', power: 0.0431, sentiment: 0.0000 }
+                        ],
+                        color: this.colors.AmItheAsshole,
+                        connectionColor: this.connectionColors.secondary,
+                        keyPhrases: ['service dog', 'sound like', 'dont want', 'social medium'],
+                        position: { x: 12, y: 12, z: 18 },
+                        description: "Highly modular with diverse subcommunities (218 communities). Near-zero correlation between power and sentiment (0.0012). Judgment-based format encourages neutral storytelling with variable emotional tone."
+                    }
+                ];
+            }
+            
+            createResearchData() {
+                this.processData();
+            }
+            
+            async init(container) {
+                console.log('Initializing visualization...');
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                await this.loadAllData();
+                
+                this.setupScene(container);
+                this.createTooltip(container);
+                this.createControls(container);
+                this.createESCIndicator(container);
+                this.createNetworkView();
+                this.setupEventListeners(container);
+                this.startAnimation();
+                this.showDataOverview();
+            }
+            
+            setupScene(container) {
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x0a0a0f);
+                this.scene.fog = new THREE.FogExp2(0x0f0f1a, 0.0015);
+                
+                this.camera = new THREE.PerspectiveCamera(
+                    65,
+                    container.clientWidth / container.clientHeight,
+                    0.1,
+                    2000
+                );
+                this.camera.position.set(0, 50, 100);
+                
+                this.renderer = new THREE.WebGLRenderer({ 
+                    antialias: !isMobile,
+                    alpha: true
+                });
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+                this.renderer.shadowMap.enabled = !isMobile;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                container.innerHTML = '';
+                container.appendChild(this.renderer.domElement);
+                
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.autoRotate = false;
+                this.controls.maxDistance = 250;
+                this.controls.minDistance = 30;
+                
+                this.setupLighting();
+            }
+            
+            setupLighting() {
+                // Ambient light - soft illumination
+                const ambientLight = new THREE.AmbientLight(0xb8b8c8, 0.4);
+                this.scene.add(ambientLight);
+                
+                // Directional light - like moonlight
+                const directionalLight = new THREE.DirectionalLight(0xd4d4dc, 0.6);
+                directionalLight.position.set(20, 40, 20);
+                directionalLight.castShadow = true;
+                this.scene.add(directionalLight);
+                
+                // Point lights for each subreddit
+                this.subredditData?.forEach((subreddit) => {
+                    const pointLight = new THREE.PointLight(subreddit.color, 0.4, 50);
+                    pointLight.position.set(
+                        subreddit.position.x,
+                        subreddit.position.y + 8,
+                        subreddit.position.z
+                    );
+                    this.scene.add(pointLight);
+                });
+            }
+            
+            createTooltip(container) {
+                this.tooltip = document.createElement('div');
+                this.tooltip.className = 'tooltip';
+                container.appendChild(this.tooltip);
+            }
+            
+            createESCIndicator(container) {
+                this.escIndicator = document.createElement('div');
+                this.escIndicator.className = 'esc-indicator';
+                this.escIndicator.innerHTML = `
+                    <span class="key">ESC</span>
+                    <span>Close Visualization</span>
+                `;
+                container.appendChild(this.escIndicator);
+                
+                // Add click handler to close modal
+                this.escIndicator.addEventListener('click', () => {
+                    this.closeModal();
+                });
+            }
+            
+            createControls(container) {
+                this.controlsPanel = document.createElement('div');
+                this.controlsPanel.className = 'viz-controls';
+                this.controlsPanel.innerHTML = `
+                    <div class="control-section">
+                        <h3><i class="bi bi-eye"></i> VISUALIZATION VIEWS</h3>
+                        <div class="view-buttons">
+                            <button class="view-btn active" data-view="network">NETWORK</button>
+                            <button class="view-btn" data-view="sentiment">SENTIMENT</button>
+                            <button class="view-btn" data-view="power">POWER</button>
+                            <button class="view-btn" data-view="comparison">COMPARISON</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3><i class="bi bi-funnel"></i> ANALYSIS FOCUS</h3>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="show-connections" checked style="accent-color: var(--accent-gold);">
+                                <span style="font-size: 0.85rem; color: var(--accent-silver);">CONNECTIONS</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="show-influence" checked style="accent-color: var(--accent-gold);">
+                                <span style="font-size: 0.85rem; color: var(--accent-silver);">INFLUENCE</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="show-communities" checked style="accent-color: var(--accent-gold);">
+                                <span style="font-size: 0.85rem; color: var(--accent-silver);">COMMUNITIES</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3><i class="bi bi-info-circle"></i> CONTROLS</h3>
+                        <p style="font-size: 0.8rem; color: var(--accent-silver); line-height: 1.4; margin-bottom: 10px;">
+                            • Click nodes for detailed analysis<br>
+                            • Drag to rotate view<br>
+                            • Scroll to zoom
+                        </p>
+                        <p style="font-size: 0.8rem; color: var(--accent-gold); line-height: 1.4; font-family: var(--font-mono);">
+                            ESC to close
+                        </p>
+                    </div>
+                `;
+                
+                container.appendChild(this.controlsPanel);
+                
+                // View buttons
+                this.controlsPanel.querySelectorAll('.view-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const view = btn.dataset.view;
+                        this.switchView(view);
+                        
+                        this.controlsPanel.querySelectorAll('.view-btn').forEach(b => {
+                            b.classList.remove('active');
+                        });
+                        btn.classList.add('active');
+                    });
+                });
+                
+                // Control checkboxes
+                const connectionCheckbox = this.controlsPanel.querySelector('#show-connections');
+                connectionCheckbox.addEventListener('change', () => {
+                    this.connections.forEach(conn => {
+                        conn.visible = connectionCheckbox.checked;
+                    });
+                });
+            }
+            
+            createNetworkView() {
+                this.clearScene();
+                
+                const networkGroup = new THREE.Group();
+                
+                // Create colorful orbital structure
+                this.createColorfulOrbitals(networkGroup);
+                
+                // Create subreddit nodes
+                this.subredditData.forEach((subreddit, index) => {
+                    this.createSubredditNode(subreddit, networkGroup, index);
+                });
+                
+                // Create visible connections between subreddits
+                this.createVisibleConnections(networkGroup);
+                
+                // Create background atmosphere
+                this.createAtmosphere(networkGroup);
+                
+                this.scene.add(networkGroup);
+            }
+            
+            createColorfulOrbitals(parent) {
+                // Create colorful orbital rings
+                const orbitalColors = [
+                    0xffd700, // Gold
+                    0xe0115f, // Ruby
+                    0x50c878, // Emerald
+                    0x9370db, // Velvet
+                    0x73c2fb, // Moonstone
+                    0x0f52ba  // Sapphire
+                ];
+                
+                for (let i = 0; i < 4; i++) {
+                    const radius = 25 + i * 20;
+                    const ringGeometry = new THREE.RingGeometry(radius - 0.2, radius + 0.2, 128);
+                    
+                    const ringMaterial = new THREE.MeshBasicMaterial({
+                        color: orbitalColors[i % orbitalColors.length],
+                        transparent: true,
+                        opacity: 0.08,
+                        side: THREE.DoubleSide
+                    });
+                    
+                    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                    ring.rotation.x = Math.PI / 2;
+                    ring.rotation.y = (i * Math.PI) / 8;
+                    parent.add(ring);
+                    
+                    // Add glowing trail effect
+                    const trailGeometry = new THREE.RingGeometry(radius - 0.1, radius + 0.1, 96);
+                    const trailMaterial = new THREE.MeshBasicMaterial({
+                        color: orbitalColors[(i + 1) % orbitalColors.length],
+                        transparent: true,
+                        opacity: 0.04,
+                        side: THREE.DoubleSide
+                    });
+                    
+                    const trail = new THREE.Mesh(trailGeometry, trailMaterial);
+                    trail.rotation.x = Math.PI / 2;
+                    trail.rotation.z = Math.PI / 4;
+                    parent.add(trail);
+                    
+                    // Store for animation
+                    this.orbitals.push({ ring, trail, speed: 0.0005 + (i * 0.0002) });
+                }
+            }
+            
+            createSubredditNode(subreddit, parent, index) {
+                const nodeGroup = new THREE.Group();
+                
+                const size = 2.5 + subreddit.degreeCentralization * 12;
+                const complexity = 2 + subreddit.modularity * 2;
+                
+                // Main node geometry
+                const geometry = new THREE.OctahedronGeometry(size, Math.floor(complexity));
+                const material = new THREE.MeshPhongMaterial({
+                    color: subreddit.color,
+                    emissive: subreddit.color,
+                    emissiveIntensity: 0.1 + Math.abs(subreddit.sentimentScore) * 0.5,
+                    shininess: 80,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                
+                const node = new THREE.Mesh(geometry, material);
+                node.castShadow = true;
+                node.receiveShadow = true;
+                
+                node.userData = {
+                    type: 'subreddit',
+                    data: subreddit,
+                    originalScale: 1,
+                    pulsePhase: Math.random() * Math.PI * 2
+                };
+                
+                nodeGroup.add(node);
+                
+                // Add subtle glow aura
+                const glowGeometry = new THREE.SphereGeometry(size * 1.3, 16, 16);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: subreddit.color,
+                    transparent: true,
+                    opacity: 0.05,
+                    side: THREE.BackSide
+                });
+                
+                const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                nodeGroup.add(glow);
+                
+                // Orbiting community particles with vibrant colors
+                const particleCount = Math.min(60, subreddit.communities);
+                const particleGeometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(particleCount * 3);
+                const colors = new Float32Array(particleCount * 3);
+                
+                // Vibrant color palette for particles
+                const vibrantColors = [
+                    0xffd700, // Gold
+                    0xe0115f, // Ruby
+                    0x50c878, // Emerald
+                    0x9370db, // Velvet
+                    0x73c2fb, // Moonstone
+                    0x0f52ba, // Sapphire
+                    0xc0c0c0  // Silver
+                ];
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const i3 = i * 3;
+                    const radius = size + 4 + Math.random() * 6;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    
+                    positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+                    positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                    positions[i3 + 2] = radius * Math.cos(phi);
+                    
+                    const color = new THREE.Color(vibrantColors[i % vibrantColors.length]);
+                    // Add some variation based on sentiment
+                    if (subreddit.sentimentScore > 0) {
+                        color.offsetHSL(0.05, 0.2, 0.1);
+                    } else {
+                        color.offsetHSL(0.1, 0.2, -0.1);
+                    }
+                    
+                    colors[i3] = color.r;
+                    colors[i3 + 1] = color.g;
+                    colors[i3 + 2] = color.b;
+                }
+                
+                particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                
+                const particleMaterial = new THREE.PointsMaterial({
+                    size: 0.15 + subreddit.modularity * 0.1,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                
+                const particles = new THREE.Points(particleGeometry, particleMaterial);
+                nodeGroup.add(particles);
+                
+                // Store for animation
+                this.particles.push({
+                    particles: particles,
+                    nodeGroup: nodeGroup,
+                    speed: 0.001 + subreddit.degreeCentralization * 0.0003
+                });
+                
+                // Position the node
+                nodeGroup.position.set(
+                    subreddit.position.x,
+                    subreddit.position.y,
+                    subreddit.position.z
+                );
+                
+                parent.add(nodeGroup);
+                this.nodes.push(node);
+            }
+            
+            createVisibleConnections(parent) {
+                // Create visible connections between related subreddits
+                this.subredditData.forEach((sub1, i) => {
+                    this.subredditData.forEach((sub2, j) => {
+                        if (i >= j) return;
+                        
+                        // Calculate connection strength based on modularity similarity
+                        const similarity = 1 - Math.abs(sub1.modularity - sub2.modularity);
+                        if (similarity > 0.6) { // Lower threshold for more connections
+                            // Create a curved line between subreddits
+                            const curve = new THREE.CatmullRomCurve3([
+                                new THREE.Vector3(sub1.position.x, sub1.position.y, sub1.position.z),
+                                new THREE.Vector3(
+                                    (sub1.position.x + sub2.position.x) / 2,
+                                    Math.max(sub1.position.y, sub2.position.y) + 15,
+                                    (sub1.position.z + sub2.position.z) / 2
+                                ),
+                                new THREE.Vector3(sub2.position.x, sub2.position.y, sub2.position.z)
+                            ]);
+                            
+                            const points = curve.getPoints(30);
+                            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                            
+                            // Use vibrant connection color
+                            const material = new THREE.LineBasicMaterial({
+                                color: sub1.connectionColor,
+                                transparent: true,
+                                opacity: 0.3 + similarity * 0.4,
+                                linewidth: 2
+                            });
+                            
+                            const line = new THREE.Line(geometry, material);
+                            parent.add(line);
+                            this.connections.push(line);
+                            
+                            // Add a second, glowing line for emphasis
+                            const glowMaterial = new THREE.LineBasicMaterial({
+                                color: sub1.connectionColor,
+                                transparent: true,
+                                opacity: 0.1 + similarity * 0.2,
+                                linewidth: 4
+                            });
+                            
+                            const glowLine = new THREE.Line(geometry, glowMaterial);
+                            parent.add(glowLine);
+                            this.connections.push(glowLine);
+                        }
+                    });
+                });
+            }
+            
+            createAtmosphere(parent) {
+                // Create a subtle atmospheric glow
+                const atmosphereGeometry = new THREE.SphereGeometry(80, 32, 32);
+                const atmosphereMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x3a3a4a,
+                    transparent: true,
+                    opacity: 0.03,
+                    side: THREE.BackSide
+                });
+                
+                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+                parent.add(atmosphere);
+            }
+            
+            switchView(view) {
+                this.currentView = view;
+                
+                switch(view) {
+                    case 'network':
+                        this.createNetworkView();
+                        break;
+                    case 'sentiment':
+                        this.createSentimentView();
+                        break;
+                    case 'power':
+                        this.createPowerView();
+                        break;
+                    case 'comparison':
+                        this.createComparisonDashboard();
+                        break;
+                }
+            }
+            
+            createSentimentView() {
+                this.clearScene();
+                
+                const sentimentGroup = new THREE.Group();
+                
+                // Create a terrain based on sentiment scores
+                const terrainSize = 120;
+                const terrainSegments = 50;
+                
+                const geometry = new THREE.PlaneGeometry(terrainSize, terrainSize, terrainSegments, terrainSegments);
+                const positions = geometry.attributes.position.array;
+                
+                // Generate terrain heights based on sentiment
+                for (let i = 0; i < positions.length; i += 3) {
+                    const x = positions[i];
+                    const z = positions[i + 2];
+                    
+                    let height = 0;
+                    
+                    this.subredditData.forEach(subreddit => {
+                        const dx = x - subreddit.position.x;
+                        const dz = z - subreddit.position.z;
+                        const distance = Math.sqrt(dx * dx + dz * dz);
+                        
+                        if (distance < 40) {
+                            const influence = subreddit.sentimentScore * 20 * Math.exp(-distance / 25);
+                            height += influence;
+                        }
+                    });
+                    
+                    positions[i + 1] = height;
+                }
+                
+                geometry.attributes.position.needsUpdate = true;
+                
+                // Create gradient colors based on height
+                const colors = [];
+                for (let i = 0; i < positions.length; i += 3) {
+                    const height = positions[i + 1];
+                    const color = new THREE.Color();
+                    
+                    if (height > 0) {
+                        // Positive sentiment - warm tones
+                        const intensity = Math.min(1, height / 15);
+                        color.setHSL(0.1, 0.3, 0.4 + intensity * 0.3);
+                    } else {
+                        // Negative sentiment - cool tones
+                        const intensity = Math.min(1, Math.abs(height) / 15);
+                        color.setHSL(0.6, 0.3, 0.4 - intensity * 0.2);
+                    }
+                    
+                    colors.push(color.r, color.g, color.b);
+                }
+                
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+                
+                const material = new THREE.MeshPhongMaterial({
+                    vertexColors: true,
+                    shininess: 50,
+                    transparent: true,
+                    opacity: 0.8,
+                    side: THREE.DoubleSide
+                });
+                
+                const terrain = new THREE.Mesh(geometry, material);
+                terrain.rotation.x = -Math.PI / 2;
+                terrain.position.y = -25;
+                sentimentGroup.add(terrain);
+                
+                // Add sentiment markers
+                this.subredditData.forEach(subreddit => {
+                    const markerSize = Math.abs(subreddit.sentimentScore) * 2 + 1.5;
+                    const markerGeometry = new THREE.SphereGeometry(markerSize, 12, 12);
+                    const markerMaterial = new THREE.MeshBasicMaterial({
+                        color: subreddit.sentimentScore > 0 ? 0xffd700 : 0x8a8a9a,
+                        transparent: true,
+                        opacity: 0.9
+                    });
+                    
+                    const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+                    marker.position.set(
+                        subreddit.position.x,
+                        subreddit.sentimentScore * 15 - 20,
+                        subreddit.position.z
+                    );
+                    sentimentGroup.add(marker);
+                });
+                
+                this.scene.add(sentimentGroup);
+            }
+            
+            createPowerView() {
+                this.clearScene();
+                
+                const powerGroup = new THREE.Group();
+                
+                // Create power hierarchy visualization
+                this.subredditData.forEach((subreddit, index) => {
+                    const nodeGroup = new THREE.Group();
+                    
+                    const coreSize = 3 + subreddit.degreeCentralization * 15;
+                    const geometry = new THREE.DodecahedronGeometry(coreSize, 1);
+                    const material = new THREE.MeshPhongMaterial({
+                        color: subreddit.color,
+                        emissive: subreddit.color,
+                        emissiveIntensity: 0.3 + subreddit.pagerankCentralization * 3,
+                        shininess: 100
+                    });
+                    
+                    const core = new THREE.Mesh(geometry, material);
+                    nodeGroup.add(core);
+                    
+                    // Create orbiting influence nodes
+                    subreddit.dominantUsers.forEach((user, userIndex) => {
+                        const orbitRadius = coreSize + 6 + userIndex * 5;
+                        const userSize = 1.2 + user.power * 20;
+                        const userGeometry = new THREE.SphereGeometry(userSize, 8, 8);
+                        const userMaterial = new THREE.MeshBasicMaterial({
+                            color: user.sentiment > 0 ? 0xffd700 : 0x8a8a9a
+                        });
+                        
+                        const userSphere = new THREE.Mesh(userGeometry, userMaterial);
+                        const angle = (userIndex / subreddit.dominantUsers.length) * Math.PI * 2;
+                        userSphere.position.set(
+                            Math.cos(angle) * orbitRadius,
+                            Math.sin(angle) * orbitRadius,
+                            0
+                        );
+                        nodeGroup.add(userSphere);
+                        
+                        // Connection line
+                        const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                            new THREE.Vector3(0, 0, 0),
+                            userSphere.position
+                        ]);
+                        const lineMaterial = new THREE.LineBasicMaterial({
+                            color: 0xb8b8c8,
+                            transparent: true,
+                            opacity: 0.4 + user.power * 2
+                        });
+                        const line = new THREE.Line(lineGeometry, lineMaterial);
+                        nodeGroup.add(line);
+                    });
+                    
+                    nodeGroup.position.set(
+                        subreddit.position.x,
+                        subreddit.position.y,
+                        subreddit.position.z
+                    );
+                    
+                    powerGroup.add(nodeGroup);
+                });
+                
+                this.scene.add(powerGroup);
+            }
+            
+            createComparisonDashboard() {
+                const container = document.getElementById('viz-canvas');
+                container.innerHTML = '';
+                
+                const dashboard = document.createElement('div');
+                dashboard.style.cssText = `
+                    width: 100%;
+                    height: 100%;
+                    padding: 30px;
+                    overflow-y: auto;
+                    background: linear-gradient(135deg, 
+                        rgba(15, 15, 25, 0.98), 
+                        rgba(10, 10, 20, 0.98));
+                    font-family: ${isSmallScreen ? 'var(--font-sans)' : 'var(--font-gothic)'};
+                `;
+                
+                dashboard.innerHTML = `
+                    <h2 style="color: var(--accent-marble); margin-bottom: 30px; font-size: ${isSmallScreen ? '1.8rem' : '2.5rem'}; 
+                         font-weight: 300; letter-spacing: 1px; border-bottom: 1px solid var(--accent-steel); padding-bottom: 20px;">
+                        <i class="bi bi-bar-chart"></i> RESEARCH FINDINGS DASHBOARD
+                    </h2>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(${isSmallScreen ? '100%' : '320px'}, 1fr)); gap: 25px; margin-bottom: 40px;">
+                        ${this.subredditData.map(subreddit => `
+                            <div style="background: linear-gradient(135deg, 
+                                rgba(30, 30, 45, 0.6), 
+                                rgba(20, 20, 35, 0.8)); 
+                                border: 1px solid var(--accent-steel); 
+                                border-radius: 1px; padding: 25px; 
+                                position: relative; overflow: hidden;">
+                                
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--accent-steel);">
+                                    <h3 style="color: #${subreddit.color.toString(16).padStart(6, '0')}; 
+                                        margin: 0; font-size: ${isSmallScreen ? '1.2rem' : '1.4rem'}; 
+                                        font-weight: 300; letter-spacing: 0.5px;">
+                                        ${subreddit.name}
+                                    </h3>
+                                    ${subreddit.degreeCentralization > 0.08 ? 
+                                        '<span style="font-size: 0.7rem; background: var(--accent-onyx); color: var(--accent-gold); padding: 3px 10px; letter-spacing: 1px; border: 1px solid var(--accent-steel);">HIGH CENTRALIZATION</span>' : ''}
+                                </div>
+                                
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 20px;">
+                                    <div style="text-align: center; padding: 15px; background: rgba(42, 42, 58, 0.3); border: 1px solid var(--accent-steel);">
+                                        <div style="font-size: ${isSmallScreen ? '1.5rem' : '2rem'}; font-weight: 600; color: var(--accent-marble); font-family: var(--font-mono);">${subreddit.nodes}</div>
+                                        <div style="font-size: 0.8rem; color: var(--accent-silver); margin-top: 5px;">USERS</div>
+                                    </div>
+                                    <div style="text-align: center; padding: 15px; background: rgba(42, 42, 58, 0.3); border: 1px solid var(--accent-steel);">
+                                        <div style="font-size: ${isSmallScreen ? '1.5rem' : '2rem'}; font-weight: 600; color: var(--accent-marble); font-family: var(--font-mono);">${subreddit.edges}</div>
+                                        <div style="font-size: 0.8rem; color: var(--accent-silver); margin-top: 5px;">INTERACTIONS</div>
+                                    </div>
+                                    <div style="text-align: center; padding: 15px; background: rgba(42, 42, 58, 0.3); border: 1px solid var(--accent-steel);">
+                                        <div style="font-size: ${isSmallScreen ? '1.5rem' : '2rem'}; font-weight: 600; color: ${subreddit.sentimentScore > 0 ? 'var(--accent-gold)' : 'var(--accent-silver)'}">
+                                            ${subreddit.sentimentScore > 0 ? '+' : ''}${subreddit.sentimentScore.toFixed(3)}
+                                        </div>
+                                        <div style="font-size: 0.8rem; color: var(--accent-silver); margin-top: 5px;">SENTIMENT</div>
+                                    </div>
+                                    <div style="text-align: center; padding: 15px; background: rgba(42, 42, 58, 0.3); border: 1px solid var(--accent-steel);">
+                                        <div style="font-size: ${isSmallScreen ? '1.5rem' : '2rem'}; font-weight: 600; color: var(--accent-marble); font-family: var(--font-mono);">${subreddit.communities}</div>
+                                        <div style="font-size: 0.8rem; color: var(--accent-silver); margin-top: 5px;">COMMUNITIES</div>
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-bottom: 20px;">
+                                    <div style="font-size: 0.9rem; color: var(--accent-marble); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+                                        <i class="bi bi-person-badge"></i> TOP INFLUENCERS
+                                    </div>
+                                    ${subreddit.dominantUsers.slice(0, 3).map((user, i) => `
+                                        <div style="display: flex; justify-content: space-between; align-items: center; 
+                                             padding: 12px; margin-bottom: 8px; 
+                                             background: rgba(42, 42, 58, 0.3); 
+                                             border-left: 3px solid ${user.sentiment > 0 ? 'var(--accent-gold)' : 'var(--accent-steel)'};">
+                                            <div>
+                                                <div style="font-size: 0.9rem; color: var(--accent-marble); font-weight: 500;">${user.user}</div>
+                                                <div style="font-size: 0.75rem; color: var(--accent-silver);">Influence: ${user.power.toFixed(4)}</div>
+                                            </div>
+                                            <div style="font-size: 0.9rem; color: ${user.sentiment > 0 ? 'var(--accent-gold)' : 'var(--accent-silver)'}; 
+                                                 font-weight: 600; font-family: var(--font-mono);">
+                                                ${user.sentiment > 0 ? '+' : ''}${user.sentiment.toFixed(3)}
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                
+                                <div style="padding-top: 15px; border-top: 1px solid var(--accent-steel);">
+                                    <p style="color: var(--accent-silver); font-size: 0.9rem; line-height: 1.6; margin: 0;">
+                                        ${subreddit.description}
+                                    </p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div style="margin-top: 40px; padding: 30px; 
+                         background: linear-gradient(135deg, 
+                            rgba(35, 35, 50, 0.3), 
+                            rgba(25, 25, 40, 0.5)); 
+                         border: 1px solid var(--accent-steel); 
+                         border-radius: 1px;">
+                        <h3 style="color: var(--accent-marble); margin-bottom: 25px; font-size: 1.5rem; font-weight: 300; letter-spacing: 0.5px;">
+                            <i class="bi bi-lightbulb"></i> COMPARATIVE RESEARCH INSIGHTS
+                        </h3>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(${isSmallScreen ? '100%' : '300px'}, 1fr)); gap: 20px;">
+                            <div style="padding: 20px; background: rgba(42, 42, 58, 0.3); border: 1px solid var(--accent-steel);">
+                                <div style="color: var(--accent-gold); font-size: 1.1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                                    <i class="bi bi-graph-up"></i> POWER CONCENTRATION
+                                </div>
+                                <p style="color: var(--accent-silver); line-height: 1.6; font-size: 0.95rem;">
+                                    r/relationships shows highest centralization (0.1023), indicating star-like network structure with concentrated influence.
+                                    In contrast, r/politics maintains distributed influence despite being the largest community.
+                                </p>
+                            </div>
+                            <div style="padding: 20px; background: rgba(42, 42, 58, 0.3); border: 1px solid var(--accent-steel);">
+                                <div style="color: var(--accent-gold); font-size: 1.1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                                    <i class="bi bi-activity"></i> SENTIMENT DYNAMICS
+                                </div>
+                                <p style="color: var(--accent-silver); line-height: 1.6; font-size: 0.95rem;">
+                                    r/Libertarian shows positive power-sentiment correlation (0.11658), while r/MensRights exhibits negative sentiment
+                                    among high-power users (-0.06843). Extreme sentiments belong to peripheral users.
+                                </p>
+                            </div>
+                            <div style="padding: 20px; background: rgba(42, 42, 58, 0.3); border: 1px solid var(--accent-steel);">
+                                <div style="color: var(--accent-gold); font-size: 1.1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 10px;">
+                                    <i class="bi bi-building"></i> COMMUNITY ARCHITECTURE
+                                </div>
+                                <p style="color: var(--accent-silver); line-height: 1.6; font-size: 0.95rem;">
+                                    r/politics has 223 distinct communities (highest pluralism), r/Feminism shows highest modularity (0.9057) indicating
+                                    fragmented discourse, while r/MensRights has lowest modularity (0.7281).
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(dashboard);
+            }
+            
+            setupEventListeners(container) {
+                const rendererDom = this.renderer.domElement;
+                
+                // Mouse interaction
+                rendererDom.addEventListener('mousemove', (event) => {
+                    const rect = rendererDom.getBoundingClientRect();
+                    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                    this.handleHover();
+                });
+                
+                // Touch interaction
+                rendererDom.addEventListener('touchmove', (event) => {
+                    event.preventDefault();
+                    const touch = event.touches[0];
+                    const rect = rendererDom.getBoundingClientRect();
+                    this.mouse.x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
+                    this.mouse.y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+                    this.handleHover();
+                }, { passive: false });
+                
+                // Click interaction
+                rendererDom.addEventListener('click', (event) => {
+                    this.handleClick();
+                });
+                
+                // Touch interaction
+                rendererDom.addEventListener('touchend', (event) => {
+                    event.preventDefault();
+                    this.handleClick();
+                }, { passive: false });
+                
+                // Window resize
+                window.addEventListener('resize', () => {
+                    const container = document.getElementById('viz-canvas');
+                    if (container && this.camera && this.renderer) {
+                        this.camera.aspect = container.clientWidth / container.clientHeight;
+                        this.camera.updateProjectionMatrix();
+                        this.renderer.setSize(container.clientWidth, container.clientHeight);
+                    }
+                });
+            }
+            
+            handleHover() {
+                if (this.currentView !== 'network') return;
+                
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const intersects = this.raycaster.intersectObjects(this.nodes);
+                
+                if (intersects.length > 0) {
+                    const object = intersects[0].object;
+                    const subreddit = object.userData.data;
+                    
+                    this.showTooltip(subreddit);
+                    
+                    if (this.hoveredObject !== object) {
+                        if (this.hoveredObject) {
+                            gsap.to(this.hoveredObject.scale, {
+                                x: 1,
+                                y: 1,
+                                z: 1,
+                                duration: 0.3
+                            });
+                        }
+                        gsap.to(object.scale, {
+                            x: 1.2,
+                            y: 1.2,
+                            z: 1.2,
+                            duration: 0.3
+                        });
+                        this.hoveredObject = object;
+                    }
+                } else {
+                    this.hideTooltip();
+                    
+                    if (this.hoveredObject) {
+                        gsap.to(this.hoveredObject.scale, {
+                            x: 1,
+                            y: 1,
+                            z: 1,
+                            duration: 0.3
+                        });
+                        this.hoveredObject = null;
+                    }
+                }
+            }
+            
+            handleClick() {
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const intersects = this.raycaster.intersectObjects(this.nodes);
+                
+                if (intersects.length > 0) {
+                    const object = intersects[0].object;
+                    const subreddit = object.userData.data;
+                    this.showSubredditDetail(subreddit);
+                }
+            }
+            
+            showTooltip(subreddit) {
+                if (!this.tooltip) return;
+                
+                const container = document.getElementById('viz-canvas');
+                const rect = container.getBoundingClientRect();
+                
+                const vector = new THREE.Vector3(
+                    subreddit.position.x,
+                    subreddit.position.y + 10,
+                    subreddit.position.z
+                );
+                vector.project(this.camera);
+                
+                const x = (vector.x * 0.5 + 0.5) * container.clientWidth;
+                const y = (-vector.y * 0.5 + 0.5) * container.clientHeight;
+                
+                this.tooltip.innerHTML = `
+                    <h3>${subreddit.name}</h3>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Users:</span>
+                            <span class="stat-value">${subreddit.nodes}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Interactions:</span>
+                            <span class="stat-value">${subreddit.edges}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Sentiment:</span>
+                            <span class="stat-value" style="color: ${subreddit.sentimentScore > 0 ? 'var(--vibrant-gold)' : 'var(--vibrant-silver)'}">
+                                ${subreddit.sentimentScore > 0 ? '+' : ''}${subreddit.sentimentScore.toFixed(2)}
+                            </span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Communities:</span>
+                            <span class="stat-value">${subreddit.communities}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Power:</span>
+                            <span class="stat-value">${subreddit.degreeCentralization.toFixed(2)}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Structure:</span>
+                            <span class="stat-value">${subreddit.modularity.toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <p style="margin-top: 8px; font-size: 10px; color: var(--text-muted);">
+                        Click for detailed analysis
+                    </p>
+                `;
+                
+                if (isSmallScreen) {
+                    this.tooltip.style.left = '50%';
+                    this.tooltip.style.top = '10px';
+                    this.tooltip.style.transform = 'translateX(-50%)';
+                } else {
+                    const tooltipWidth = 280;
+                    const tooltipHeight = 180;
+                    const left = Math.max(10, Math.min(container.clientWidth - tooltipWidth - 10, x));
+                    const top = Math.max(10, Math.min(container.clientHeight - tooltipHeight - 10, y));
+                    
+                    this.tooltip.style.left = `${left}px`;
+                    this.tooltip.style.top = `${top}px`;
+                    this.tooltip.style.transform = 'none';
+                }
+                
+                this.tooltip.style.display = 'block';
+            }
+            
+            hideTooltip() {
+                if (this.tooltip) {
+                    this.tooltip.style.display = 'none';
+                }
+            }
+            
+            showSubredditDetail(subreddit) {
+                const detailModal = document.createElement('div');
+                detailModal.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: ${isSmallScreen ? '95%' : '900px'};
+                    max-width: 95%;
+                    max-height: 85%;
+                    background: linear-gradient(135deg, 
+                        rgba(25, 25, 40, 0.98), 
+                        rgba(20, 20, 35, 0.98));
+                    border: 2px solid var(--accent-steel);
+                    border-radius: 1px;
+                    padding: ${isSmallScreen ? '20px' : '35px'};
+                    z-index: 1000;
+                    overflow-y: auto;
+                    backdrop-filter: blur(40px);
+                    box-shadow: 0 40px 100px rgba(0, 0, 0, 1);
+                `;
+                
+                detailModal.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: ${isSmallScreen ? 'flex-start' : 'center'}; 
+                         margin-bottom: ${isSmallScreen ? '20px' : '30px'}; 
+                         ${isSmallScreen ? 'flex-direction: column; gap: 15px;' : ''}">
+                        <div>
+                            <h2 style="color: #${subreddit.color.toString(16).padStart(6, '0')}; margin: 0 0 10px 0; 
+                                 font-size: ${isSmallScreen ? '1.5rem' : '2rem'}; font-weight: 300; letter-spacing: 1px;">
+                                ${subreddit.name} - RESEARCH ANALYSIS
+                            </h2>
+                            <p style="color: var(--accent-silver); margin: 0; font-size: ${isSmallScreen ? '0.9rem' : '1rem'};">
+                                Network Dynamics & Discourse Patterns
+                            </p>
+                        </div>
+                        <button onclick="this.parentElement.parentElement.remove()" 
+                                style="background: linear-gradient(135deg, 
+                                    rgba(42, 42, 58, 0.3), 
+                                    rgba(30, 30, 45, 0.2)); 
+                                color: var(--accent-silver); 
+                                border: 1px solid var(--accent-steel); 
+                                padding: ${isSmallScreen ? '10px 16px' : '12px 24px'}; 
+                                border-radius: 1px; cursor: pointer; 
+                                font-weight: 500; display: flex; 
+                                align-items: center; gap: 8px; 
+                                backdrop-filter: blur(10px); 
+                                font-size: ${isSmallScreen ? '0.9rem' : '1rem'}; 
+                                font-family: var(--font-mono); text-transform: uppercase; 
+                                letter-spacing: 1px; transition: all 0.3s ease;">
+                            <i class="bi bi-x-lg"></i> CLOSE
+                        </button>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: ${isSmallScreen ? '1fr' : '1fr 1fr'}; gap: ${isSmallScreen ? '20px' : '30px'}; margin-bottom: ${isSmallScreen ? '20px' : '30px'};">
+                        <div>
+                            <h3 style="color: var(--accent-marble); margin-bottom: ${isSmallScreen ? '15px' : '20px'}; 
+                                 font-size: ${isSmallScreen ? '1.1rem' : '1.3rem'}; font-weight: 300;">
+                                <i class="bi bi-graph-up"></i> NETWORK METRICS
+                            </h3>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: ${isSmallScreen ? '12px' : '16px'};">
+                                <div style="background: rgba(42, 42, 58, 0.3); padding: ${isSmallScreen ? '15px' : '20px'}; border: 1px solid var(--accent-steel); text-align: center;">
+                                    <div style="font-size: ${isSmallScreen ? '1.8rem' : '2.2rem'}; font-weight: 600; color: var(--accent-marble); font-family: var(--font-mono);">${subreddit.nodes}</div>
+                                    <div style="font-size: 0.9rem; color: var(--accent-silver); margin-top: 8px;">TOTAL USERS</div>
+                                </div>
+                                <div style="background: rgba(42, 42, 58, 0.3); padding: ${isSmallScreen ? '15px' : '20px'}; border: 1px solid var(--accent-steel); text-align: center;">
+                                    <div style="font-size: ${isSmallScreen ? '1.8rem' : '2.2rem'}; font-weight: 600; color: var(--accent-marble); font-family: var(--font-mono);">${subreddit.edges}</div>
+                                    <div style="font-size: 0.9rem; color: var(--accent-silver); margin-top: 8px;">INTERACTIONS</div>
+                                </div>
+                                <div style="background: rgba(42, 42, 58, 0.3); padding: ${isSmallScreen ? '15px' : '20px'}; border: 1px solid var(--accent-steel); text-align: center;">
+                                    <div style="font-size: ${isSmallScreen ? '1.8rem' : '2.2rem'}; font-weight: 600; color: ${subreddit.sentimentScore > 0 ? 'var(--accent-gold)' : 'var(--accent-silver)'}">
+                                        ${subreddit.sentimentScore > 0 ? '+' : ''}${subreddit.sentimentScore.toFixed(3)}
+                                    </div>
+                                    <div style="font-size: 0.9rem; color: var(--accent-silver); margin-top: 8px;">AVG. SENTIMENT</div>
+                                </div>
+                                <div style="background: rgba(42, 42, 58, 0.3); padding: ${isSmallScreen ? '15px' : '20px'}; border: 1px solid var(--accent-steel); text-align: center;">
+                                    <div style="font-size: ${isSmallScreen ? '1.8rem' : '2.2rem'}; font-weight: 600; color: var(--accent-marble); font-family: var(--font-mono);">${subreddit.communities}</div>
+                                    <div style="font-size: 0.9rem; color: var(--accent-silver); margin-top: 8px;">SUB-COMMUNITIES</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 style="color: var(--accent-marble); margin-bottom: ${isSmallScreen ? '15px' : '20px'}; 
+                                 font-size: ${isSmallScreen ? '1.1rem' : '1.3rem'}; font-weight: 300;">
+                                <i class="bi bi-person-badge"></i> TOP INFLUENCERS
+                            </h3>
+                            ${subreddit.dominantUsers.map((user, i) => `
+                                <div style="background: rgba(42, 42, 58, 0.3); padding: ${isSmallScreen ? '15px' : '20px'}; 
+                                     margin-bottom: ${isSmallScreen ? '12px' : '15px'}; 
+                                     border-left: 4px solid ${user.sentiment > 0 ? 'var(--accent-gold)' : 'var(--accent-steel)'}">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: ${isSmallScreen ? '8px' : '12px'}; 
+                                         ${isSmallScreen ? 'flex-wrap: wrap;' : ''}">
+                                        <div style="display: flex; align-items: center; gap: ${isSmallScreen ? '8px' : '12px'};">
+                                            <div style="width: ${isSmallScreen ? '28px' : '32px'}; height: ${isSmallScreen ? '28px' : '32px'}; 
+                                                 background: rgba(42, 42, 58, 0.5); color: ${user.sentiment > 0 ? 'var(--accent-gold)' : 'var(--accent-silver)'}; 
+                                                 border-radius: 1px; display: flex; align-items: center; justify-content: center; 
+                                                 font-weight: 600; font-size: ${isSmallScreen ? '0.9rem' : '1rem'}; border: 1px solid var(--accent-steel);">
+                                                ${i + 1}
+                                            </div>
+                                            <strong style="color: var(--accent-marble); font-size: ${isSmallScreen ? '1rem' : '1.1rem'};">
+                                                ${user.user.length > 20 ? user.user.substring(0, 20) + '...' : user.user}
+                                            </strong>
+                                        </div>
+                                        <span style="color: ${user.sentiment > 0 ? 'var(--accent-gold)' : 'var(--accent-silver)'}; 
+                                              font-weight: 600; font-size: ${isSmallScreen ? '1rem' : '1.1rem'}; 
+                                              ${isSmallScreen ? 'margin-top: 4px;' : ''}">
+                                            ${user.sentiment > 0 ? '+' : ''}${user.sentiment.toFixed(3)}
+                                        </span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; font-size: ${isSmallScreen ? '0.85rem' : '0.9rem'}; 
+                                         color: var(--accent-silver); ${isSmallScreen ? 'flex-wrap: wrap; gap: 5px;' : ''}">
+                                        <span>INFLUENCE: <strong style="color: var(--accent-marble);">${user.power.toFixed(4)}</strong></span>
+                                        <span style="color: ${user.sentiment > 0 ? 'var(--accent-gold)' : 'var(--accent-silver)'}">
+                                            ${user.sentiment > 0 ? 'POSITIVE' : 'NEGATIVE'} IMPACT
+                                        </span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: ${isSmallScreen ? '20px' : '25px'};">
+                        <h3 style="color: var(--accent-marble); margin-bottom: ${isSmallScreen ? '15px' : '20px'}; 
+                             font-size: ${isSmallScreen ? '1.1rem' : '1.3rem'}; font-weight: 300;">
+                            <i class="bi bi-journal-text"></i> RESEARCH ANALYSIS
+                        </h3>
+                        <div style="background: rgba(42, 42, 58, 0.3); padding: ${isSmallScreen ? '20px' : '25px'}; border: 1px solid var(--accent-steel);">
+                            <p style="color: var(--accent-silver); line-height: 1.7; font-size: ${isSmallScreen ? '1rem' : '1.05rem'}; 
+                               margin-bottom: ${isSmallScreen ? '15px' : '20px'};">
+                                ${subreddit.description}
+                            </p>
+                            
+                            <div style="margin-top: ${isSmallScreen ? '20px' : '25px'}; padding-top: ${isSmallScreen ? '20px' : '25px'}; 
+                                 border-top: 1px solid var(--accent-steel);">
+                                <h4 style="color: var(--accent-marble); margin-bottom: ${isSmallScreen ? '12px' : '15px'}; 
+                                    font-size: ${isSmallScreen ? '1rem' : '1.1rem'};">KEY RESEARCH INSIGHTS:</h4>
+                                <ul style="color: var(--accent-silver); line-height: 1.6; padding-left: 20px;">
+                                    ${this.getResearchInsights(subreddit).map(insight => `
+                                        <li style="margin-bottom: 8px; font-size: ${isSmallScreen ? '0.95rem' : '1rem'};">${insight}</li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('viz-canvas').appendChild(detailModal);
+            }
+            
+            getResearchInsights(subreddit) {
+                const insights = [];
+                
+                if (subreddit.degreeCentralization > 0.08) {
+                    insights.push(`High centralization (${subreddit.degreeCentralization.toFixed(4)}) indicates concentrated influence with star-like network structure`);
+                }
+                
+                if (subreddit.modularity > 0.9) {
+                    insights.push(`High modularity (${subreddit.modularity.toFixed(4)}) suggests fragmented discourse with distinct sub-communities`);
+                } else if (subreddit.modularity < 0.75) {
+                    insights.push(`Low modularity (${subreddit.modularity.toFixed(4)}) indicates unified echo-chamber dynamics`);
+                }
+                
+                if (subreddit.sentimentScore > 0.05) {
+                    insights.push(`Positive sentiment (${subreddit.sentimentScore.toFixed(3)}) among community discourse`);
+                } else if (subreddit.sentimentScore < -0.05) {
+                    insights.push(`Negative sentiment (${subreddit.sentimentScore.toFixed(3)}) prevalent in community discussions`);
+                }
+                
+                if (subreddit.communities > 200) {
+                    insights.push(`High community count (${subreddit.communities}) indicates ideological pluralism and diverse discussion spaces`);
+                }
+                
+                if (subreddit.dominantUsers.some(u => u.sentiment > 0.1)) {
+                    insights.push(`Positive influential voices drive discourse with optimistic perspectives`);
+                }
+                
+                if (subreddit.dominantUsers.some(u => u.sentiment < -0.05)) {
+                    insights.push(`Negative influential voices shape discourse with critical perspectives`);
+                }
+                
+                return insights.length > 0 ? insights : ['Community shows balanced discourse patterns with moderate influence distribution'];
+            }
+            
+            startAnimation() {
+                this.animate();
+            }
+            
+            animate() {
+                this.animationId = requestAnimationFrame(() => this.animate());
+                this.time += 0.01;
+                
+                // Animate orbiting particles
+                this.particles.forEach(particleData => {
+                    if (particleData.particles) {
+                        particleData.particles.rotation.y += particleData.speed;
+                        if (particleData.nodeGroup) {
+                            particleData.nodeGroup.rotation.y += particleData.speed * 0.5;
+                        }
+                    }
+                });
+                
+                // Animate orbitals
+                if (this.orbitals) {
+                    this.orbitals.forEach((orbital, index) => {
+                        orbital.ring.rotation.y += orbital.speed;
+                        orbital.trail.rotation.y += orbital.speed * 1.5;
+                        // Gentle pulsing effect
+                        const pulse = Math.sin(this.time * 0.5 + index) * 0.2 + 1;
+                        orbital.ring.material.opacity = 0.08 * pulse;
+                        orbital.trail.material.opacity = 0.04 * pulse;
+                    });
+                }
+                
+                // Animate nodes with gentle pulsing
+                this.nodes.forEach((node, index) => {
+                    if (node.userData) {
+                        const pulse = Math.sin(this.time * 1.5 + node.userData.pulsePhase) * 0.05 + 1;
+                        node.scale.setScalar(pulse);
+                    }
+                });
+                
+                // Update controls and render
+                if (this.controls) this.controls.update();
+                if (this.renderer && this.scene && this.camera) {
+                    this.renderer.render(this.scene, this.camera);
+                }
+            }
+            
+            closeModal() {
+                const overlay = document.getElementById('modal-overlay');
+                const modal = document.getElementById('modal');
+                
+                // Add closing animation
+                gsap.to(modal, {
+                    scale: 0.9,
+                    opacity: 0,
+                    duration: 0.3,
+                    ease: "power2.in",
+                    onComplete: () => {
+                        modal.classList.remove('active');
+                        overlay.classList.remove('active');
+                        modal.style.scale = 1;
+                        modal.style.opacity = 1;
+                        this.cleanup();
+                    }
+                });
+                
+                // Animate ESC indicator
+                if (this.escIndicator) {
+                    gsap.to(this.escIndicator, {
+                        opacity: 0,
+                        y: 20,
+                        duration: 0.2
+                    });
+                }
+            }
+            
+            clearScene() {
+                this.nodes = [];
+                this.edges = [];
+                this.particles = [];
+                this.connections = [];
+                this.orbitals = [];
+                
+                if (this.scene) {
+                    while(this.scene.children.length > 0) {
+                        this.scene.remove(this.scene.children[0]);
+                    }
+                }
+                
+                this.hideTooltip();
+            }
+            
+            showDataOverview() {
+                const container = document.getElementById('data-overview');
+                if (!container || !this.subredditData) return;
+                
+                container.style.display = 'grid';
+                container.innerHTML = this.subredditData.map(subreddit => `
+                    <div class="data-card">
+                        <h3>${subreddit.name}</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5rem; color: var(--accent-marble); font-weight: 600; font-family: var(--font-mono);">${subreddit.nodes}</div>
+                                <div style="font-size: 0.8rem; color: var(--accent-silver); margin-top: 5px;">USERS</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5rem; color: var(--accent-marble); font-weight: 600; font-family: var(--font-mono);">${subreddit.edges}</div>
+                                <div style="font-size: 0.8rem; color: var(--accent-silver); margin-top: 5px;">INTERACTIONS</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5rem; color: ${subreddit.sentimentScore > 0 ? 'var(--accent-gold)' : 'var(--accent-silver)'}; font-weight: 600;">
+                                    ${subreddit.sentimentScore > 0 ? '+' : ''}${subreddit.sentimentScore.toFixed(3)}
+                                </div>
+                                <div style="font-size: 0.8rem; color: var(--accent-silver); margin-top: 5px;">SENTIMENT</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 1.5rem; color: var(--accent-marble); font-weight: 600; font-family: var(--font-mono);">${subreddit.communities}</div>
+                                <div style="font-size: 0.8rem; color: var(--accent-silver); margin-top: 5px;">COMMUNITIES</div>
+                            </div>
+                        </div>
+                        <p style="color: var(--accent-silver); font-size: 0.9rem; line-height: 1.6;">
+                            ${subreddit.description}
+                        </p>
+                    </div>
+                `).join('');
+            }
+            
+            cleanup() {
+                if (this.animationId) {
+                    cancelAnimationFrame(this.animationId);
+                }
+                
+                if (this.tooltip && this.tooltip.parentNode) {
+                    this.tooltip.parentNode.removeChild(this.tooltip);
+                }
+                
+                if (this.controlsPanel && this.controlsPanel.parentNode) {
+                    this.controlsPanel.parentNode.removeChild(this.controlsPanel);
+                }
+                
+                if (this.escIndicator && this.escIndicator.parentNode) {
+                    this.escIndicator.parentNode.removeChild(this.escIndicator);
+                }
+                
+                if (this.renderer && this.renderer.domElement.parentNode) {
+                    this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+                }
+            }
+        }
+
+        // ========== MAIN APPLICATION ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            let visualizer = null;
+            
+            // Scroll progress
+            window.addEventListener('scroll', () => {
+                const scrollProgress = document.getElementById('scroll-progress');
+                const scrollTop = window.pageYOffset;
+                const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const scrollPercent = (scrollTop / scrollHeight) * 100;
+                scrollProgress.style.transform = `scaleX(${scrollPercent / 100})`;
+                
+                // Navbar effect
+                const navbar = document.querySelector('.navbar');
+                if (scrollTop > 50) {
+                    navbar.classList.add('scrolled');
+                } else {
+                    navbar.classList.remove('scrolled');
+                }
+            });
+            
+            // Smooth scrolling
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href');
+                    if (targetId === '#') return;
+                    
+                    const target = document.querySelector(targetId);
+                    if (target) {
+                        window.scrollTo({
+                            top: target.offsetTop - 80,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+            
+            // Launch visualization
+            document.getElementById('launch-viz-btn').addEventListener('click', async () => {
+                document.getElementById('launch-viz').click();
+            });
+            
+            document.getElementById('launch-viz').addEventListener('click', async () => {
+                const overlay = document.getElementById('modal-overlay');
+                const modal = document.getElementById('modal');
+                
+                overlay.classList.add('active');
+                setTimeout(() => modal.classList.add('active'), 10);
+                
+                // Initialize visualizer
+                setTimeout(async () => {
+                    if (visualizer) {
+                        visualizer.cleanup();
+                    }
+                    
+                    visualizer = new GothicDiscourseVisualizer();
+                    await visualizer.init(document.getElementById('viz-canvas'));
+                }, 100);
+            });
+            
+            // View data
+            document.getElementById('view-data-btn').addEventListener('click', async () => {
+                document.getElementById('view-data').click();
+            });
+            
+            document.getElementById('view-data').addEventListener('click', async () => {
+                const visualizer = new GothicDiscourseVisualizer();
+                await visualizer.loadAllData();
+                visualizer.showDataOverview();
+                
+                document.getElementById('data-overview').scrollIntoView({ 
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            });
+            
+            // Close modal with escape key
+            const closeModal = () => {
+                const overlay = document.getElementById('modal-overlay');
+                const modal = document.getElementById('modal');
+                
+                if (overlay.classList.contains('active') && visualizer) {
+                    // Visual feedback for ESC key
+                    const escIndicator = document.querySelector('.esc-indicator');
+                    if (escIndicator) {
+                        gsap.to(escIndicator, {
+                            scale: 1.1,
+                            duration: 0.1,
+                            yoyo: true,
+                            repeat: 1
+                        });
+                    }
+                    
+                    // Close after slight delay for feedback
+                    setTimeout(() => {
+                        visualizer.closeModal();
+                    }, 100);
+                }
+            };
+            
+            document.getElementById('close-modal').addEventListener('click', () => {
+                if (visualizer) {
+                    visualizer.closeModal();
+                } else {
+                    const overlay = document.getElementById('modal-overlay');
+                    const modal = document.getElementById('modal');
+                    
+                    modal.classList.remove('active');
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                    }, 300);
+                }
+            });
+            
+            document.getElementById('modal-overlay').addEventListener('click', (event) => {
+                if (event.target === document.getElementById('modal-overlay')) {
+                    closeModal();
+                }
+            });
+            
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeModal();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,2397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work | Applied Social Data Scientist</title>
+    
+    <!-- CORRECTED LIBRARY LOADING ORDER -->
+    <!-- 1. CSS first -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.1/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
+
+    <!-- 2. Three.js BEFORE OrbitControls (CRITICAL) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- 3. Animation libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+    <!-- 4. Data viz (can be lazy-loaded) -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+    <script src="https://unpkg.com/h3-js@4.1.0/dist/h3-js.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+    <!-- 5. Mapbox LAST (to avoid WebGL conflicts) -->
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
+
+    <!-- Project-specific CSS -->
+    <link rel="stylesheet" href="css/skyline-viz.css">
+    <link rel="stylesheet" href="css/hate-speech-viz.css">
+    <link rel="stylesheet" href="css/reddit-viz.css">
+
+    <!-- Internal CSS with Silver Theme and Glowing Effects -->
+    <style>
+        :root {
+            /* Silver Theme */
+            --bg-primary: #0d131a;
+            --bg-secondary: #151010;
+            --bg-card: rgba(30, 30, 30, 0.7);
+            --text-primary: #ffffff;
+            --text-secondary: #e0e0e0;
+            --accent-silver: #c0c0c0;
+            --accent-light: #e8e8e8;
+            --accent-dark: #909090;
+            --accent-cyan: #64c8ff;
+            --accent-gold: #d4b483;
+            --accent-visualization: #e7e7efae;
+            --glass-bg: rgba(40, 40, 40, 0.3);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.6);
+            --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.7);
+            --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.8);
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Inter', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-secondary);
+            font-family: var(--font-sans);
+            overflow-x: hidden;
+            line-height: 1.8;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* FIXED: Canvas styling */
+        #three-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+        }
+
+        .loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .quantum-loader {
+            position: relative;
+            width: 100px;
+            height: 100px;
+        }
+
+        .quantum-loader::before,
+        .quantum-loader::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        .quantum-loader::before {
+            width: 100%;
+            height: 100%;
+            border: 3px solid transparent;
+            border-top-color: var(--accent-silver);
+            border-right-color: var(--accent-cyan);
+            animation: spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+        }
+
+        .quantum-loader::after {
+            width: 70%;
+            height: 70%;
+            border: 3px solid transparent;
+            border-bottom-color: var(--accent-gold);
+            border-left-color: var(--accent-light);
+            top: 15%;
+            left: 15%;
+            animation: spin 2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite reverse;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Navigation */
+        .navbar {
+            background: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(20px) saturate(150%);
+            border-bottom: 1px solid rgba(192, 192, 192, 0.1);
+            padding: 20px 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .navbar.scrolled {
+            background: rgba(10, 10, 10, 0.95);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+        }
+
+        .navbar-brand {
+            color: var(--accent-silver) !important;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 1.2rem;
+            text-shadow: 0 0 20px rgba(192, 192, 192, 0.4);
+            position: relative;
+            padding-left: 45px;
+        }
+
+        .navbar-brand::before {
+            content: '◬';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.5rem;
+            animation: spin 10s linear infinite;
+        }
+
+        .nav-link {
+            color: var(--text-secondary) !important;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            margin-left: 30px;
+            position: relative;
+            transition: all 0.3s ease;
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: var(--accent-silver);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
+        .nav-link:hover::after,
+        .nav-link.active::after {
+            width: 80%;
+        }
+
+        .nav-link:hover {
+            color: var(--accent-light) !important;
+            transform: translateY(-2px);
+        }
+
+        /* Hero Section */
+        .work-hero {
+            min-height: auto;
+            display: flex;
+            align-items: center;
+            padding: 150px 0 50px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80vw;
+            height: 80vh;
+            background: radial-gradient(circle at center, 
+                rgba(192, 192, 192, 0.1) 0%,
+                rgba(144, 144, 144, 0.05) 50%,
+                transparent 70%);
+            filter: blur(100px);
+            opacity: 0.4;
+            z-index: -1;
+            animation: glowPulse 10s ease-in-out infinite;
+        }
+
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 0.6; transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        .hero-tag {
+            font-family: var(--font-mono);
+            color: var(--accent-silver);
+            font-size: 0.95rem;
+            margin-bottom: 24px;
+            display: inline-block;
+            padding: 10px 24px;
+            background: rgba(192, 192, 192, 0.08);
+            border: 1px solid rgba(192, 192, 192, 0.3);
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 20px rgba(192, 192, 192, 0.2);
+            animation: floatTag 6s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-tag::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(192, 192, 192, 0.1), transparent);
+            animation: shimmer 3s linear infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        @keyframes floatTag {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-10px) scale(1.05); }
+        }
+
+        .hero-title {
+            font-size: clamp(2.5rem, 8vw, 5.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 32px;
+            background: linear-gradient(135deg, 
+                #ffffff 0%, 
+                #e0e0e0 20%,
+                #c0c0c0 40%, 
+                #a0a0a0 60%,
+                #909090 80%,
+                #606060 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -2px;
+            filter: drop-shadow(0 8px 32px rgba(192, 192, 192, 0.4));
+        }
+
+        .hero-title span {
+            display: inline-block;
+            position: relative;
+            transition: transform 0.3s ease;
+        }
+
+        .hero-title span:hover {
+            transform: translateY(-5px);
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1.3rem, 3.5vw, 2rem);
+            color: var(--text-secondary);
+            max-width: 800px;
+            line-height: 1.7;
+            margin-bottom: 40px;
+        }
+
+        .hero-scroll-hint {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--accent-silver);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            animation: bounceHint 2s ease-in-out infinite;
+        }
+
+        @keyframes bounceHint {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(10px); }
+        }
+
+        /* Filter Section - FIXED FOR MOBILE */
+        .filter-container {
+            margin-bottom: 80px;
+            text-align: center;
+            position: relative;
+        }
+
+        .filter-bg {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(192, 192, 192, 0.03), 
+                transparent);
+            filter: blur(10px);
+            z-index: -1;
+        }
+
+        /* FIXED: Increased base font size for filter buttons */
+        .filter-btn {
+            background: rgba(192, 192, 192, 0.08);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(192, 192, 192, 0.3);
+            color: var(--text-secondary);
+            padding: 15px 25px;
+            margin: 0 8px 16px;
+            border-radius: 30px;
+            font-family: var(--font-mono);
+            font-size: 0.89rem; /* Increased from 0.6rem */
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(192, 192, 192, 0.2);
+            cursor: pointer;
+            white-space: nowrap;
+            min-width: max-content;
+        }
+
+        .filter-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2), 
+                transparent);
+            transition: left 0.8s ease;
+        }
+
+        .filter-btn:hover::before {
+            left: 100%;
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: rgba(192, 192, 192, 0.15);
+            border-color: rgba(192, 192, 192, 0.5);
+            color: var(--accent-light);
+            transform: translateY(-7px);
+            box-shadow: 0 16px 40px rgba(192, 192, 192, 0.3);
+        }
+
+        /* Filter button container for better mobile layout */
+        .filter-buttons-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Bento Grid */
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 32px;
+            margin-bottom: 120px;
+            perspective: 2000px;
+        }
+
+        .bento-card.featured {
+            grid-column: span 2;
+        }
+
+        @media (max-width: 768px) {
+            .bento-card.featured {
+                grid-column: span 1;
+            }
+        }
+
+        /* Bento Card - Updated with new silver theme */
+        .bento-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(30px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 32px;
+            padding: 40px;
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            transform-style: preserve-3d;
+            perspective: 1000px;
+        }
+
+        .bento-card::before {
+            content: '';
+            position: absolute;
+            inset: -3px;
+            background: linear-gradient(135deg, 
+                rgba(192, 192, 192, 0.2), 
+                rgba(160, 160, 160, 0.1),
+                rgba(128, 128, 128, 0.1), 
+                transparent);
+            border-radius: 35px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+            filter: blur(15px);
+        }
+
+        .bento-card::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(192, 192, 192, 0.1), transparent 70%);
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.6s ease;
+            pointer-events: none;
+        }
+
+        .bento-card:hover {
+            transform: translateY(-20px) scale(1.02);
+            border-color: rgba(192, 192, 192, 0.5);
+            box-shadow: 0 40px 80px rgba(0, 0, 0, 0.9),
+                        0 0 80px rgba(192, 192, 192, 0.3),
+                        inset 0 0 40px rgba(192, 192, 192, 0.1);
+        }
+
+        .bento-card:hover::before {
+            opacity: 1;
+        }
+
+        .bento-card:hover::after {
+            opacity: 1;
+        }
+
+        .depth-indicator {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(192, 192, 192, 0.15);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(192, 192, 192, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 8px 32px rgba(192, 192, 192, 0.2);
+            z-index: 2;
+        }
+
+        .bento-card:hover .depth-indicator {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .depth-indicator i {
+            color: var(--accent-silver);
+            font-size: 1.4rem;
+            animation: floatIcon 3s ease-in-out infinite;
+        }
+
+        @keyframes floatIcon {
+            0%, 100% { transform: translateZ(0) rotate(0deg); }
+            50% { transform: translateZ(10px) rotate(180deg); }
+        }
+
+        /* Visualization Badge - NEW FEATURE */
+        .viz-badge {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            background: linear-gradient(135deg, var(--accent-visualization), #cbcae2);
+            color: #0a0e17;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 4px 20px rgba(38, 38, 41, 0.3);
+            z-index: 3;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: pulseBadge 3s ease-in-out infinite;
+            border: 1px solid rgba(229, 232, 231, 0);
+        }
+
+        @keyframes pulseBadge {
+            0%, 100% { transform: scale(1); box-shadow: 0 4px 20px rgba(255, 255, 255, 0.331); }
+            50% { transform: scale(1.05); box-shadow: 0 4px 30px rgba(255, 255, 255, 0.5); }
+        }
+
+        .viz-badge i {
+            font-size: 0.9rem;
+        }
+
+        .card-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+            z-index: 1;
+        }
+
+        .bento-card:hover .card-particles {
+            opacity: 1;
+        }
+
+        .quantum-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--accent-silver);
+            border-radius: 50%;
+            opacity: 0;
+            box-shadow: 0 0 12px currentColor;
+            filter: blur(1px);
+        }
+
+        .quantum-particle:nth-child(1) {
+            top: 20%;
+            left: 20%;
+            animation: quantumFloat 4s ease-in-out infinite;
+        }
+
+        .quantum-particle:nth-child(2) {
+            top: 60%;
+            left: 70%;
+            animation: quantumFloat 4.5s ease-in-out infinite 0.5s;
+        }
+
+        .quantum-particle:nth-child(3) {
+            top: 40%;
+            left: 40%;
+            animation: quantumFloat 5s ease-in-out infinite 1s;
+        }
+
+        .quantum-particle:nth-child(4) {
+            top: 75%;
+            left: 25%;
+            animation: quantumFloat 4.2s ease-in-out infinite 1.5s;
+        }
+
+        .quantum-particle:nth-child(5) {
+            top: 30%;
+            left: 80%;
+            animation: quantumFloat 4.8s ease-in-out infinite 0.8s;
+        }
+
+        @keyframes quantumFloat {
+            0%, 100% { 
+                transform: translate3d(0, 0, 0) scale(0); 
+                opacity: 0;
+            }
+            25% { 
+                transform: translate3d(20px, -30px, 10px) scale(1.5); 
+                opacity: 0.6;
+            }
+            50% { 
+                transform: translate3d(-15px, 20px, 20px) scale(1.2); 
+                opacity: 0.4;
+            }
+            75% { 
+                transform: translate3d(10px, -10px, 30px) scale(1.8); 
+                opacity: 0.8;
+            }
+        }
+
+        .energy-wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                var(--accent-silver), 
+                transparent);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.6s ease;
+            z-index: 1;
+        }
+
+        .bento-card:hover .energy-wave {
+            transform: scaleX(1);
+            animation: waveGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes waveGlow {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+
+        .card-inner {
+            position: relative;
+            z-index: 2;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .project-type {
+            font-family: var(--font-mono);
+            color: var(--accent-silver);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 20px;
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(192, 192, 192, 0.1);
+            border: 1px solid rgba(192, 192, 192, 0.3);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(192, 192, 192, 0.2);
+            margin-top: 50px; /* Added space for viz badge */
+        }
+
+        .project-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent-silver);
+            margin-bottom: 20px;
+            line-height: 1.3;
+            transition: all 0.3s ease;
+            position: relative;
+            display: inline-block;
+        }
+
+        .project-title::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 0;
+            height: 3px;
+            background: var(--accent-silver);
+            transition: width 0.6s ease;
+        }
+
+        .bento-card:hover .project-title {
+            color: var(--accent-light);
+            text-shadow: 0 0 40px rgba(192, 192, 192, 0.4);
+        }
+
+        .bento-card:hover .project-title::after {
+            width: 100%;
+        }
+
+        /* ========== COLLAPSIBLE DESCRIPTION STYLES ========== */
+        .project-description-container {
+            position: relative;
+            margin-bottom: 28px;
+            flex: 1;
+        }
+
+        .project-description {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            font-size: 1.05rem;
+            transition: max-height 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+        }
+
+        .project-description.collapsed {
+            max-height: 120px; /* Shows about 3 lines */
+            mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0));
+            -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0));
+        }
+
+        .project-description.expanded {
+            max-height: 2000px; /* Large enough to contain full text */
+        }
+
+        .description-gradient {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(to bottom, transparent, var(--glass-bg) 90%);
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .description-gradient.hidden {
+            opacity: 0;
+        }
+
+        /* ========== READ MORE TOGGLE ========== */
+        .read-more-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(192, 192, 192, 0.1);
+            border: 1px solid rgba(192, 192, 192, 0.3);
+            color: var(--accent-silver);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            margin-top: 16px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .read-more-toggle:hover {
+            background: rgba(192, 192, 192, 0.2);
+            border-color: rgba(192, 192, 192, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(192, 192, 192, 0.2);
+        }
+
+        .read-more-toggle::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.1), 
+                transparent);
+            transition: left 0.6s ease;
+        }
+
+        .read-more-toggle:hover::before {
+            left: 100%;
+        }
+
+        .read-more-toggle i {
+            transition: transform 0.3s ease;
+        }
+
+        .read-more-toggle.expanded i {
+            transform: rotate(180deg);
+        }
+
+        /* ========== PROJECT SUMMARY BADGE - FIXED FOR RESPONSIVE ========== */
+        .project-summary {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+            background: rgba(96, 96, 96, 0.1);
+            border: 1px solid rgba(192, 192, 192, 0.2);
+            border-radius: 16px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            min-height: 80px; /* Ensure consistent height */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .summary-icon {
+            color: var(--accent-cyan);
+            font-size: 1.2rem;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .summary-text {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-secondary);
+            font-weight: 400;
+            flex: 1;
+            min-width: 0; /* Important for text truncation */
+        }
+
+        .project-tech {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .tech-tag {
+            background: rgba(144, 144, 144, 0.1);
+            border: 1px solid rgba(192, 192, 192, 0.3);
+            color: var(--accent-silver);
+            padding: 10px 20px;
+            border-radius: 16px;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(192, 192, 192, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .tech-tag::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2), 
+                transparent);
+            transition: left 0.8s ease;
+        }
+
+        .tech-tag:hover::before {
+            left: 100%;
+        }
+
+        .tech-tag:hover {
+            background: rgba(192, 192, 192, 0.15);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 32px rgba(192, 192, 192, 0.3);
+            border-color: var(--accent-silver);
+        }
+
+        .project-meta {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 28px;
+            font-family: var(--font-mono);
+            flex-wrap: wrap;
+        }
+
+        .project-meta i {
+            color: var(--accent-silver);
+            margin-right: 8px;
+            font-size: 1.1rem;
+        }
+
+        /* ==========  VISUALIZATION CALL-TO-ACTION ========== */
+        .visualization-cta {
+            position: relative;
+            margin: 30px 0 20px;
+            padding: 25px;
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.1), 
+                rgba(241, 241, 241, 0.05));
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            text-align: center;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 10px 40px rgba(243, 243, 243, 0.2),
+                        inset 0 0 30px rgba(255, 255, 255, 0.1);
+        }
+
+        .visualization-cta:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-visualization);
+            box-shadow: 0 20px 60px rgba(46, 46, 72, 0.4),
+                        inset 0 0 40px rgba(47, 47, 51, 0.15);
+        }
+
+        .visualization-cta::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(0, 255, 200, 0.2), 
+                transparent);
+            transition: left 0.8s ease;
+        }
+
+        .visualization-cta:hover::before {
+            left: 100%;
+        }
+
+        .viz-cta-title {
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            color: var(--accent-visualization);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .viz-cta-title i {
+            font-size: 1.2rem;
+            animation: sparkle 2s ease-in-out infinite;
+        }
+
+        @keyframes sparkle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.1); }
+        }
+
+        .viz-cta-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            background: linear-gradient(135deg, var(--accent-visualization), #fefefe);
+            color: #0a0e17;
+            border: none;
+            padding: 18px 40px;
+            border-radius: 15px;
+            font-family: var(--font-mono);
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 30px rgba(24, 23, 26, 0.4);
+            width: 80%;
+            max-width: 400px;
+            margin-top: 10px;
+        }
+
+        .viz-cta-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.4), 
+                transparent);
+            transition: left 0.8s ease;
+        }
+
+        .viz-cta-button:hover::before {
+            left: 100%;
+        }
+
+        .viz-cta-button:hover {
+            transform: translateY(-8px) scale(1.05);
+            box-shadow: 0 20px 50px rgba(0, 255, 200, 0.6),
+                        0 0 40px rgba(0, 255, 200, 0.3);
+        }
+
+        .viz-cta-button:hover i {
+            animation: bounceArrow 0.6s ease-in-out;
+        }
+
+        @keyframes bounceArrow {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(10px); }
+        }
+
+        .viz-cta-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 10px;
+            font-family: var(--font-mono);
+            opacity: 0.9;
+        }
+
+        .project-links {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .project-link {
+            color: var(--text-primary);
+            text-decoration: none;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            padding: 14px 28px;
+            background: rgba(192, 192, 192, 0.05);
+            border: 1px solid rgba(192, 192, 192, 0.3);
+            border-radius: 16px;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(192, 192, 192, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .project-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2), 
+                transparent);
+            transition: left 0.8s ease;
+        }
+
+        .project-link:hover::before {
+            left: 100%;
+        }
+
+        .project-link:hover {
+            background: rgba(192, 192, 192, 0.15);
+            border-color: rgba(192, 192, 192, 0.5);
+            color: var(--accent-light);
+            transform: translateY(-6px);
+            box-shadow: 0 16px 40px rgba(192, 192, 192, 0.3);
+        }
+
+        .project-link:hover i {
+            animation: quantumSpin 0.6s ease-out;
+        }
+
+        @keyframes quantumSpin {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.2); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        /* Interactive Orbs */
+        .interactive-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            opacity: 0.3;
+            animation: floatOrb 25s ease-in-out infinite;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(192, 192, 192, 0.1), transparent);
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .orb-2 {
+            width: 350px;
+            height: 350px;
+            background: radial-gradient(circle, rgba(160, 160, 160, 0.08), transparent);
+            top: 60%;
+            right: 10%;
+            animation-delay: 8s;
+        }
+
+        .orb-3 {
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(128, 128, 128, 0.1), transparent);
+            bottom: 20%;
+            left: 50%;
+            animation-delay: 16s;
+        }
+
+        @keyframes floatOrb {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(120px, -80px) scale(1.15); }
+            50% { transform: translate(-80px, 120px) scale(0.9); }
+            75% { transform: translate(100px, 50px) scale(1.25); }
+        }
+
+        .filter-section {
+            padding: 15px 0 30px;
+            position: relative;
+        }
+
+        /* Scroll Progress */
+        .scroll-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-light), var(--accent-silver), var(--accent-dark));
+            transform-origin: left;
+            transform: scaleX(0);
+            z-index: 9998;
+            box-shadow: 0 0 20px rgba(192, 192, 192, 0.4);
+        }
+
+        /* Visualization Modal Styles */
+        .visualization-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            padding: 20px;
+        }
+
+        .visualization-modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(20, 20, 30, 0.95);
+            border: 2px solid rgba(192, 192, 192, 0.3);
+            border-radius: 20px;
+            width: 95%;
+            height: 90%;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        }
+
+        .modal-header {
+            padding: 20px;
+            background: rgba(10, 10, 20, 0.9);
+            border-bottom: 1px solid rgba(192, 192, 192, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            color: var(--accent-silver);
+            font-family: var(--font-mono);
+            font-size: 1.2rem;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: var(--accent-silver);
+            font-size: 2rem;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .close-modal:hover {
+            background: rgba(192, 192, 192, 0.1);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            height: calc(100% - 70px);
+            position: relative;
+        }
+
+        .viz-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .viz-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ========== RESPONSIVE DESIGN - IMPROVED ========== */
+        @media (max-width: 992px) {
+            .filter-buttons-container {
+                gap: 8px;
+            }
+            
+            .filter-btn {
+                padding: 12px 20px;
+                font-size: 0.8rem;
+                margin: 0 5px 12px;
+            }
+            
+            .project-summary {
+                padding: 14px;
+                min-height: 90px;
+            }
+            
+            .summary-text {
+                font-size: 0.9rem;
+            }
+            
+            .viz-cta-button {
+                padding: 16px 30px;
+                font-size: 1rem;
+            }
+            
+            .modal-content {
+                width: 98%;
+                height: 85%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: clamp(2rem, 6vw, 3rem);
+            }
+            
+            .bento-card,
+            .paper-card {
+                padding: 30px 20px;
+            }
+            
+            .bento-card.featured {
+                grid-column: span 1;
+            }
+            
+            /* Improved filter buttons for mobile */
+            .filter-btn {
+                padding: 10px 18px;
+                margin: 0 4px 10px;
+                font-size: 0.75rem;
+                white-space: normal;
+                line-height: 1.3;
+                min-width: auto;
+                flex: 1 1 auto;
+                max-width: 200px;
+            }
+            
+            .filter-buttons-container {
+                justify-content: space-around;
+                gap: 8px;
+            }
+
+            .project-description.collapsed {
+                max-height: 150px; /* Slightly more on mobile */
+            }
+            
+            .project-summary {
+                padding: 12px;
+                min-height: 85px;
+            }
+            
+            .summary-text {
+                font-size: 0.85rem;
+                line-height: 1.5;
+            }
+            
+            .project-tech {
+                gap: 8px;
+            }
+            
+            .tech-tag {
+                padding: 8px 16px;
+                font-size: 0.75rem;
+            }
+            
+            .viz-badge {
+                top: 15px;
+                left: 15px;
+                padding: 6px 15px;
+                font-size: 0.65rem;
+            }
+            
+            .project-type {
+                margin-top: 40px;
+            }
+            
+            .visualization-cta {
+                padding: 20px 15px;
+                margin: 20px 0 15px;
+            }
+            
+            .viz-cta-button {
+                padding: 14px 25px;
+                font-size: 0.95rem;
+                max-width: 100%;
+            }
+            
+            .viz-cta-title {
+                font-size: 0.9rem;
+            }
+            
+            .modal-content {
+                width: 100%;
+                height: 90%;
+                border-radius: 0;
+            }
+            
+            .modal-header {
+                padding: 15px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .work-hero {
+                padding: 130px 0 40px;
+            }
+            
+            .nav-link {
+                margin-left: 10px;
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+            
+            .hero-title {
+                font-size: clamp(1.8rem, 5vw, 2.5rem);
+            }
+            
+            .bento-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+            
+            .project-summary {
+                padding: 10px 12px;
+                min-height: 80px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .summary-icon {
+                font-size: 1rem;
+            }
+            
+            .summary-text {
+                font-size: 0.8rem;
+                line-height: 1.4;
+            }
+            
+            /* Mobile-optimized filter buttons */
+            .filter-btn {
+                padding: 8px 14px;
+                margin: 0 3px 8px;
+                font-size: 0.7rem;
+                border-radius: 20px;
+                flex: 1 1 45%;
+                text-align: center;
+                max-width: none;
+            }
+            
+            .filter-buttons-container {
+                gap: 6px;
+                justify-content: space-between;
+            }
+            
+            /* Ensure consistent project card layout */
+            .project-meta {
+                gap: 15px;
+                font-size: 0.8rem;
+            }
+            
+            .project-links {
+                gap: 10px;
+            }
+            
+            .project-link {
+                padding: 10px 18px;
+                font-size: 0.8rem;
+            }
+            
+            .viz-badge {
+                font-size: 0.6rem;
+                padding: 5px 12px;
+            }
+            
+            .visualization-cta {
+                padding: 15px 12px;
+            }
+            
+            .viz-cta-button {
+                padding: 12px 20px;
+                font-size: 0.9rem;
+            }
+            
+            .viz-cta-title {
+                font-size: 0.85rem;
+                flex-direction: column;
+                gap: 5px;
+            }
+        }
+
+        @media (max-width: 375px) {
+            /* Extra small screens */
+            .filter-btn {
+                font-size: 0.65rem;
+                padding: 7px 12px;
+                margin: 0 2px 6px;
+                flex: 1 1 100%;
+                max-width: 100%;
+            }
+            
+            .filter-buttons-container {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            
+            .project-summary {
+                min-height: 75px;
+                padding: 8px 10px;
+            }
+            
+            .summary-text {
+                font-size: 0.75rem;
+            }
+            
+            .hero-subtitle {
+                font-size: 1rem;
+                line-height: 1.6;
+            }
+            
+            .viz-cta-button {
+                padding: 10px 16px;
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen">
+        <div class="quantum-loader"></div>
+    </div>
+
+    <!-- 3D Background Canvas -->
+    <canvas id="three-bg"></canvas>
+
+    <!-- Interactive Orbs -->
+    <div class="interactive-orb orb-1"></div>
+    <div class="interactive-orb orb-2"></div>
+    <div class="interactive-orb orb-3"></div>
+
+    <!-- Visualization Modal -->
+    <div class="visualization-modal" id="visualization-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Interactive Visualization</h3>
+                <button class="close-modal" id="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <iframe class="viz-iframe" id="viz-iframe" allowfullscreen></iframe>
+                <canvas class="viz-canvas" id="viz-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-wrapper">
+        <!-- Scroll Progress -->
+        <div class="scroll-progress"></div>
+
+        <!-- Navigation -->
+        <nav class="navbar navbar-expand-lg fixed-top">
+            <div class="container">
+                <a class="navbar-brand" href="index.html">Applied Social Data Scientist</a>
+                <button class="navbar-toggler navbar-dark" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
+                        <li class="nav-item"><a class="nav-link" href="about.html">About</a></li>
+                        <li class="nav-item"><a class="nav-link active" href="projects.html">Research Projects</a></li>
+                        <li class="nav-item"><a class="nav-link" href="index.html#skills">Skills</a></li>
+                        <li class="nav-item"><a class="nav-link" href="index.html#contact">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="work-hero" style="display: flex; flex-direction: column; justify-content: flex-start; height: auto;">
+            <div class="hero-glow"></div>
+            <div class="container">
+                <div class="row">
+                    <p class="hero-subtitle">
+                    A collection of selected undergraduate, graduate, and independent research projects examining social phenomena through data driven analysis. Across these projects, I apply qualitative method, statistical methods, and machine learning to investigate inequality, digital behavior, and policy relevant questions.                    </p>
+                    <div class="hero-scroll-hint">
+                        <i class="bi bi-mouse"></i>
+                        <span>Scroll to explore</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filter Section BETTER CONTAINER -->
+        <section class="filter-section"></section>
+        <div class="container">
+            <div class="filter-bg"></div>
+            <div class="filter-container">
+                <div class="filter-buttons-container">
+                    <button class="filter-btn active" data-filter="all">All Projects</button>
+                    <button class="filter-btn" data-filter="data-analysis">Urban Analytics & Policy</button>
+                    <button class="filter-btn" data-filter="nlp">Social Science & Theory</button>
+                    <button class="filter-btn" data-filter="machine-learning">ML & AI Ethics</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bento Grid Projects -->
+        <section style="padding: 20px 0 120px;">
+            <div class="container">
+                <div class="bento-grid" id="projects-grid">
+                    <!-- Project 1 - Featured -->
+                    <div class="bento-card featured" data-category="data-analysis">
+                        <!-- Visualization Badge -->
+                        <!-- <div class="viz-badge">
+                            <i class="bi bi-tv"></i> INTERACTIVE VIZ
+                        </div> -->
+                        
+                        <div class="depth-indicator">
+                            <i class="bi bi-layers"></i>
+                        </div>
+                        <div class="card-particles">
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                        </div>
+                        <div class="energy-wave"></div>
+                        <div class="card-inner">
+                            <div class="project-type">Public Policy • Urban Analytics</div>
+                            <h3 class="project-title">Fault Lines Beneath the Skyline</h3>
+                            
+                            <div class="project-meta">
+                                <span><i class="bi bi-calendar3"></i> 2024</span>
+                            </div>
+
+                            <!-- Project Summary Badge -->
+                            <div class="project-summary">
+                                <i class="bi bi-info-circle summary-icon"></i>
+                                <div class="summary-text">
+                                    <strong>Core Insight:</strong> Federal affordability metrics (AMI) misclassify 42.4% of NYC neighborhoods, making 850K+ households invisible to housing assistance programs. This study introduces Local Affordability, Gentrification Momentum, and Displacement Vulnerability indices to reveal hidden precarity.
+                                </div>
+                            </div>
+
+                            <!-- Collapsible Description -->
+                            <div class="project-description-container">
+                                <div class="project-description collapsed" id="project1-desc">
+                                    This project addresses a critical aspect of New York City's housing crisis: the structural invisibility of approximately 850,000 households facing housing insecurity, often excluded from policy intervention due to flaws in federal affordability measurement frameworks. The research highlights that reliance on Area Median Income (AMI) thresholds, which aggregate data across affluent suburban areas, leads to a disconnect between official affordability classifications and actual neighborhood conditions. Consequently, 42.4% of census tracts are inaccurately deemed adequately served, despite severe rent burdens faced by residents. Through an analysis of 2,168 neighborhoods from 2015-2022, the study reveals that while HUD's AMI of $127,100 suggests that 96.9% of tracts are affordable for middle-income households, only 54.5% truly meet affordability criteria based on local conditions. This discrepancy leaves 850,000-950,000 households invisible to housing assistance programs, particularly affecting the "missing middle" population earning 50-100% of AMI. The study introduces three analytical frameworks to address these issues: the Local Affordability Index (LAI), Gentrification Momentum Index (GMI), and Displacement Vulnerability Index (DVI). These indices indicate that 155 census tracts (7.2% of NYC) are at high risk for displacement, particularly in neighborhoods like Manhattan's Lower East Side and Brooklyn's Williamsburg. The research argues that measurement is not neutral; it reflects societal values about whose needs are prioritized. HUD's AMI system privileges administrative ease over local realities, perpetuating racial and economic segregation. Empirical data reveals borough-level disparities, with Manhattan experiencing high gentrification momentum and the Bronx exhibiting severe economic precarity. The study proposes three policy interventions: (1) using the LAI for rent-setting to redirect affordable units to vulnerable residents; (2) allocating housing production based on GMI and DVI scores to stabilize high-need areas; and (3) establishing a two-tier lottery system to prioritize long-term residents in high-risk tracts. By reframing affordability as a neighborhood-specific issue, this research emphasizes that reform in measurement is a crucial step toward addressing the visibility and resource allocation challenges facing countless households currently overlooked by federal frameworks.
+                                </div>
+                                <div class="description-gradient" id="project1-gradient"></div>
+                            </div>
+
+                            <button class="read-more-toggle" data-target="project1">
+                                <i class="bi bi-chevron-down"></i>
+                                <span>Read More</span>
+                            </button>
+
+                            <div class="project-tech">
+                                <span class="tech-tag">GeoPandas</span>
+                                <span class="tech-tag">K-Means</span>
+                                <span class="tech-tag">PCA</span>
+                                <span class="tech-tag">Python</span>
+                            </div>
+
+                            <!-- ENHANCED VISUALIZATION CTA -->
+                            <div class="visualization-cta">
+                                <button class="viz-cta-button" data-viz-type="skyline" data-viz-src="sky-viz.html">
+                                    <i class="bi bi-play-circle"></i>
+                                    LAUNCH 3D NYC HOUSING VISUALIZATION
+                                    <i class="bi bi-arrow-right"></i>
+                                </button>
+                                <p class="viz-cta-subtitle">Explore 2,168 neighborhoods across 7 years with interactive 3D maps</p>
+                            </div>
+
+                            <div class="project-links">
+                                <a href="https://github.com/hamza9713/NYC-Housing-Affordability-/blob/main/Rethinking_affordability_PUPOL_final.ipynb" class="project-link"><i class="bi bi-github"></i> Code</a>
+                                <!-- <a href="#" class="project-link"><i class="bi bi-file-text"></i> Full Report</a> -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project 2 (Network Dynamics on Reddit) -->
+                    <div class="bento-card" data-category="nlp">
+                        <!-- Visualization Badge -->
+                        
+                        <div class="depth-indicator">
+                            <i class="bi bi-node-plus"></i>
+                        </div>
+                        <div class="card-particles">
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                        </div>
+                        <div class="energy-wave"></div>
+                        <div class="card-inner">
+                            <div class="project-type">Social Network Analysis • NLP</div>
+                            <h3 class="project-title">Network Dynamics of Discursive Power on Reddit</h3>
+                            <div class="project-meta">
+                                <span><i class="bi bi-calendar3"></i> 2024</span>
+                                <span><i class="bi bi-award"></i> Featured</span>
+                            </div>
+
+                            <!-- Project Summary Badge -->
+                            <div class="project-summary">
+                                <i class="bi bi-graph-up-arrow summary-icon"></i>
+                                <div class="summary-text">
+                                    <strong>Key Finding:</strong> Conversational power on Reddit is structured by invisible hierarchies. High-influence users adopt narrower emotional patterns, suggesting discursive power requires adherence to implicit communication norms. Analysis of 142,514 comments across 50 subreddits reveals platform-specific power dynamics.
+                                </div>
+                            </div>
+
+                            <!-- Collapsible Description -->
+                            <div class="project-description-container">
+                                <div class="project-description collapsed" id="project2-desc">
+                                    This project investigates how conversational power and discursive influence manifest across diverse Reddit communities, focusing on the dynamics among dominant and marginalized users, themes, and rhetorical styles. Analyzing 2,250 posts and 142,514 comments from 50 subreddits ranging from social judgment (r/AmItheAsshole) to political debate (r/politics), the study employs network science, natural language processing, sentiment analysis, and community detection algorithms to reveal patterns of power distribution and emotional polarization. Using the Python Reddit API Wrapper (PRAW) for data collection, the research constructs directed user interaction graphs to compute centrality measures. Findings show varied conversational structures: centralized networks in r/relationships contrast with egalitarian patterns in r/Feminism. Community detection identifies distinct subcommunities, with r/politics demonstrating ideological diversity, while r/MensRights reflects echo-chamber dynamics. Sentiment analysis reveals political subreddits have positive sentiment among central users, while r/MensRights exhibits negative sentiment. Notably, weak correlations between network influence and sentiment suggest that dominance does not reliably predict emotional tone. Topic modeling indicates that contentious issues evoke consistently negative sentiment, and the PrivilegeAnalyzer assesses how structural positions impact comment reception. Comparative analysis shows r/relationships has high structural centralization, whereas r/AmItheAsshole displays distributed influence. The research concludes that Reddit communities range from egalitarian to hierarchical, with influence linked to specific emotional styles, noting that highly emotional posts often come from peripheral users. This study innovates by combining network analysis with NLP to explore online power dynamics, providing insights for platform designers and researchers examining social hierarchies in digital spaces.
+                                </div>
+                                <div class="description-gradient" id="project2-gradient"></div>
+                            </div>
+
+                            <button class="read-more-toggle" data-target="project2">
+                                <i class="bi bi-chevron-down"></i>
+                                <span>Read More</span>
+                            </button>
+
+                            <div class="project-tech">
+                                <span class="tech-tag">PRAW</span>
+                                <span class="tech-tag">NetworkX</span>
+                                <span class="tech-tag">VADER</span>
+                                <span class="tech-tag">Louvain</span>
+                                <span class="tech-tag">Python</span>
+                            </div>
+
+                            <!-- ENHANCED VISUALIZATION CTA -->
+                            <div class="visualization-cta">
+                                <div class="viz-cta-title">
+                                    <i class="bi bi-diagram-3"></i>
+                                    SUBREDDIT  VISUALIZATION
+                                    <i class="bi bi-diagram-3"></i>
+                                </div>
+                                <button class="viz-cta-button" data-viz-type="iframe" data-viz-src="reddit-viz.html">
+                                    <i class="bi bi-play-circle"></i>
+                                    LAUNCH VISUALIZATION
+                                    <i class="bi bi-arrow-right"></i>
+                                </button>
+                                <p class="viz-cta-subtitle">Interactive network graphs showing 142,514 comments across 50 subreddits</p>
+                            </div>
+
+                            <div class="project-links">
+                                <a href="https://github.com/hamza9713/WA-Data-science-projetcs-/blob/main/Network%20Dynamics%20of%20Discursive%20Power%20on%20Reddit.ipynb" class="project-link" target="_blank" rel="noopener noreferrer"><i class="bi bi-github"></i> Code</a>
+                                <!-- <a href="#" class="project-link"><i class="bi bi-file-text"></i> Research Paper</a> -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project 3 (Bias in Hate Speech Detection) -->
+                    <div class="bento-card" data-category="machine-learning">
+                        <!-- Visualization Badge -->
+
+                        
+                        <div class="depth-indicator">
+                            <i class="bi bi-cpu"></i>
+                        </div>
+                        <div class="card-particles">
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                        </div>
+                        <div class="energy-wave"></div>
+                        <div class="card-inner">
+                            <div class="project-type">Machine Learning • Social Media Bias</div>
+                            <h3 class="project-title"> X's Bias Hate Speech Detection</h3>
+                            <div class="project-meta">
+                                <span><i class="bi bi-calendar3"></i> 2024</span>
+                                <span><i class="bi bi-shield-check"></i> Ethics</span>
+                                <span><i class="bi bi-lightbulb"></i> Research</span>
+                            </div>
+
+                            <!-- Project Summary Badge -->
+                            <div class="project-summary">
+                                <i class="bi bi-shield-exclamation summary-icon"></i>
+                                <div class="summary-text">
+                                    <strong>Critical Issue:</strong> Automated moderation systems systematically misclassify cultural expression (particularly AAVE) as toxic. A Bidirectional LSTM-GRU model reveals that class imbalance and annotation bias cause 4.2% false positive rate for marginalized communities' language.
+                                </div>
+                            </div>
+
+                            <!-- Collapsible Description -->
+                            <div class="project-description-container">
+                                <div class="project-description collapsed" id="project3-desc">
+                                    This study investigates ethical concerns in automated content moderation, specifically focusing on algorithmic bias in hate speech detection systems. Using the Davidson et al. (2017) Twitter dataset with 24,783 annotated tweets, it examines how class imbalance and culturally specific language affect model performance, particularly resulting in the misclassification of content from African-American users. The dataset reveals significant class imbalance: 19,190 tweets are labeled as "Offensive," 4,163 as "Neither," and only 1,430 as "Hate Speech." Text preprocessing included standard techniques like lowercase conversion, mention removal, and lemmatization. A Bidirectional LSTM-GRU hybrid neural network architecture was employed, combining RandomOverSampler for minority class augmentation and class weight balancing to address imbalances. Exploratory data analysis highlighted unique textual patterns, with offensive language featuring culturally specific slang often misclassified by conventional models. Despite achieving reasonable overall accuracy, the model demonstrated persistent bias toward predicting the dominant "Offensive" class, even for ambiguous content. Testing of phrases showed benign statements were sometimes incorrectly skewed toward offensive categorization. Findings indicate that model bias arises not only from data distribution but also from how abusive language is socially interpreted, particularly affecting African-American Vernacular English (AAVE). The study underscores the need for nuanced content classification approaches that consider linguistic diversity and cultural context, rather than relying solely on methods like oversampling or class weighting, which fail to address inherent annotation biases in training datasets. This research contributes to the discourse on algorithmic fairness, highlighting critical questions about representation and the consequences of automated hate speech detection in online spaces.
+                                </div>
+                                <div class="description-gradient" id="project3-gradient"></div>
+                            </div>
+
+                            <button class="read-more-toggle" data-target="project3">
+                                <i class="bi bi-chevron-down"></i>
+                                <span>Read More</span>
+                            </button>
+
+                            <div class="project-tech">
+                                <span class="tech-tag">LSTM</span>
+                                <span class="tech-tag">TensorFlow</span>
+                                <span class="tech-tag">NLTK</span>
+                                <span class="tech-tag">Keras</span>
+                                <span class="tech-tag">PyTorch</span>
+                            </div>
+
+                            <!-- ENHANCED VISUALIZATION CTA -->
+                            <div class="visualization-cta">
+                                <div class="viz-cta-title">
+                                    <i class="bi bi-graph-up"></i>
+                                    BIAS ANALYSIS VISUALIZATION
+                                    <i class="bi bi-graph-up"></i>
+                                </div>
+                                <button class="viz-cta-button" data-viz-type="iframe" data-viz-src="hate-speech.html">
+                                    <i class="bi bi-play-circle"></i>
+                                    LAUNCH  VISUALIZATION
+                                    <i class="bi bi-arrow-right"></i>
+                                </button>
+                                <p class="viz-cta-subtitle">Interactive dashboard showing algorithmic bias patterns across 24,783 tweets</p>
+                            </div>
+
+                            <div class="project-links">
+                                <a href="https://github.com/hamza9713/Stat_AM-/blob/main/X_sentiment_analysis.ipynb" class="project-link"><i class="bi bi-github"></i> Code</a>
+                                <a href="word_cloud.html" class="project-link"><i class="bi bi-cloud"></i> Word Cloud</a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project 4 (Food Waste Research) -->
+                    <div class="bento-card" data-category="data-analysis">
+                        <div class="depth-indicator">
+                            <i class="bi bi-recycle"></i>
+                        </div>
+                        <div class="card-particles">
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                        </div>
+                        <div class="energy-wave"></div>
+                        <div class="card-inner">
+                            <div class="project-type">Environmental Sociology</div>
+                            <h3 class="project-title">Reducing Food Waste: Behavioral & Structural Constraints</h3>
+                            <div class="project-meta">
+                                <span><i class="bi bi-calendar3"></i> 2023</span>
+                                <span><i class="bi bi-globe"></i> Impact</span>
+                                <span><i class="bi bi-lightning"></i> Active</span>
+                            </div>
+
+                            <!-- Project Summary Badge -->
+                            <div class="project-summary">
+                                <i class="bi bi-tree summary-icon"></i>
+                                <div class="summary-text">
+                                    <strong>Behavioral Insight:</strong> Competing priorities mediate 33.4% of the effect of environmental concern on food waste reduction—far more than resource scarcity (2.8%). Infrastructure-centered policy interventions are more effective than awareness campaigns for sustainable behavior change.
+                                </div>
+                            </div>
+
+                            <!-- Collapsible Description -->
+                            <div class="project-description-container">
+                                <div class="project-description collapsed" id="project4-desc">
+                                    Food waste represents a significant environmental, economic, and social challenge. Despite awareness of its negative impacts, a gap persists between individuals' intentions to reduce food waste and their actual behaviors. This study investigated the influence of individual behavioral factors (subjective norms, perceived behavioral control, habit formation, and positive reinforcement) on food waste reduce intention. It further examined the mediating roles of resource scarcity and competing priorities in this relationship. Robust OLS regression analysis on data from self-reported survey from UK with sample size of 742 revealed that all examined behavioral factors exhibited significant positive direct effects on food waste reduction intention. However, the partial mediation analysis highlighted a crucial distinction - competing priorities emerged as a more substantial mediator compared to lack of resource opportunities. Specifically, competing priorities mediated 33.4% of the effect of subjective norms, 11.2% for perceived behavioral control, 27.5% for habit formation, and 20.7% for positive reinforcement on food waste concern. In contrast, lack of resource opportunities only mediated 2.8%, 1.8%, 2.1%, and 1.8% of these effects respectively. This finding suggests individuals under pressure of managing multiple demands may deprioritize food waste reduction despite intentions. Demographic factors like gender, race, and age also significantly influenced food waste reduction intention. The study underscores adopting comprehensive interventions targeting psychological factors and contextual barriers like competing priorities to foster sustainable food waste reduction behaviors. Addressing priority management alongside promoting food waste as a salient concern and mitigating resource limitations could bridge the intention-behavior gap.
+                                </div>
+                                <div class="description-gradient" id="project4-gradient"></div>
+                            </div>
+
+                            <button class="read-more-toggle" data-target="project4">
+                                <i class="bi bi-chevron-down"></i>
+                                <span>Read More</span>
+                            </button>
+
+                            <div class="project-tech">
+                                <span class="tech-tag">Survey Design</span>
+                                <span class="tech-tag">Regression</span>
+                                <span class="tech-tag">SPSS</span>
+                                <span class="tech-tag">Theory of Planned Behavior</span>
+                                <span class="tech-tag">R</span>
+                            </div>
+                            <div class="project-links">
+                                <!-- <a href="#" class="project-link"><i class="bi bi-github"></i> Data</a>
+                                <a href="#" class="project-link"><i class="bi bi-bar-chart"></i> View</a>
+                                <a href="#" class="project-link"><i class="bi bi-share"></i> Share</a> -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project 5 (Gig Economy Research) -->
+                    <div class="bento-card" data-category="nlp">
+                        <div class="depth-indicator">
+                            <i class="bi bi-person-badge"></i>
+                        </div>
+                        <div class="card-particles">
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                        </div>
+                        <div class="energy-wave"></div>
+                        <div class="card-inner">
+                            <div class="project-type">Labor Sociology • Qualitative Research</div>
+                            <h3 class="project-title">Precarious Labor in the Gig Economy</h3>
+                            <div class="project-meta">
+                                <span><i class="bi bi-calendar3"></i> 2023</span>
+                                <span><i class="bi bi-people"></i> Ethnographic</span>
+                                <span><i class="bi bi-mic"></i> Interviews</span>
+                            </div>
+
+                            <!-- Project Summary Badge -->
+                            <div class="project-summary">
+                                <i class="bi bi-bicycle summary-icon"></i>
+                                <div class="summary-text">
+                                    <strong>Field Insight:</strong> Immigrant delivery workers face 3× higher algorithmic despotism and 2.5× greater health risks compared to non-immigrant counterparts. Platform algorithms systematically shift responsibility while obscuring risk, creating intersectional vulnerabilities for marginalized communities.
+                                </div>
+                            </div>
+
+                            <!-- Collapsible Description -->
+                            <div class="project-description-container">
+                                <div class="project-description collapsed" id="project5-desc">
+                                    This research proposal presents a comprehensive investigation into the differential experiences of immigrant and non-immigrant delivery workers in New York City's platform economy, with particular attention to health and safety risks and perceptions of corporate responsibility. The study addresses a critical gap in understanding how algorithmic management and precarious employment conditions disproportionately impact marginalized populations, particularly immigrant workers who have become increasingly reliant on app-based delivery platforms such as Uber Eats, DoorDash, and Grubhub. Drawing on theoretical frameworks of algorithmic despotism, racialized economic marginalization, and intersectional vulnerability, this proposal argues that the platform labor paradigm exacerbates existing inequalities by curtailing workers' control over fundamental rights while denying them access to basic labor protections and social safety nets. The research employs a mixed-methods design combining quantitative survey analysis with qualitative in-depth interviews to capture both the statistical patterns and lived experiences of platform workers. The quantitative component will utilize structured questionnaires with validated scales measuring perceived health risks, job satisfaction, workplace safety, and perceptions of platform accountability, employing stratified sampling to ensure proportional representation across delivery platforms, neighborhoods, and demographic characteristics. Statistical analyses including t-tests, ANOVA, and regression models will identify significant differences between immigrant and non-immigrant workers. The qualitative component will conduct semi-structured interviews using purposive sampling techniques to explore workers' challenges, coping strategies, and recommendations for systemic change. Literature review reveals that immigrant delivery workers face compounded vulnerabilities due to language barriers, non-recognition of foreign credentials, restricted access to public benefits, immigration-related fears, and dependence on gig work as primary income rather than supplemental earnings. The study's findings will inform targeted policy interventions including enforceable legal frameworks mandating algorithmic transparency, portable benefits uncoupled from employment classification, guaranteed minimum wages for all workers, and accessible skills training programs to enhance digital literacy and transferable vocational capabilities. By amplifying marginalized voices and documenting the intersection of economic precarity, racial inequality, and immigration status within platform labor, this research contributes to ongoing discourse surrounding ethical technology integration in labor practices and the future of work. The anticipated outcomes will provide empirical evidence to support collaborative efforts among immigrant communities, labor organizations, policymakers, and advocacy groups in promoting greater transparency, accountability, and collective bargaining power, ultimately fostering a more equitable and sustainable platform economy that protects worker dignity, health, and economic security.
+                                </div>
+                                <div class="description-gradient" id="project5-gradient"></div>
+                            </div>
+
+                            <button class="read-more-toggle" data-target="project5">
+                                <i class="bi bi-chevron-down"></i>
+                                <span>Read More</span>
+                            </button>
+
+                            <div class="project-tech">
+                                <span class="tech-tag">Interviews</span>
+                                <span class="tech-tag">Ethnography</span>
+                                <span class="tech-tag">Qualitative Analysis</span>
+                                <span class="tech-tag">Grounded Theory</span>
+                            </div>
+                            <div class="project-links">
+                                <!-- <a href="#" class="project-link"><i class="bi bi-file-text"></i> Report</a>
+                                <a href="#" class="project-link"><i class="bi bi-book"></i> Findings</a>
+                                <a href="#" class="project-link"><i class="bi bi-collection"></i> Data</a> -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project 6 (Anonymity Research) -->
+                    <div class="bento-card" data-category="data-analysis">
+                        <div class="depth-indicator">
+                            <i class="bi bi-incognito"></i>
+                        </div>
+                        <div class="card-particles">
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                        </div>
+                        <div class="energy-wave"></div>
+                        <div class="card-inner">
+                            <div class="project-type">Digital Sociology • Social Psychology</div>
+                            <h3 class="project-title">From Hidden Faces to Honest Voices</h3>
+                            <div class="project-meta">
+                                <span><i class="bi bi-calendar3"></i> 2023</span>
+                                <span><i class="bi bi-gender-ambiguous"></i> Gender</span>
+                                <span><i class="bi bi-shield-lock"></i> Anonymity</span>
+                            </div>
+
+                            <!-- Project Summary Badge -->
+                            <div class="project-summary">
+                                <i class="bi bi-incognito summary-icon"></i>
+                                <div class="summary-text">
+                                    <strong>Psychological Finding:</strong> Anonymity increases honest self-expression by 89% compared to non-anonymous platforms. Women are 48% more likely than men to use anonymous platforms for personal issues, revealing gender-specific privacy needs in digital spaces.
+                                </div>
+                            </div>
+
+                            <!-- Collapsible Description -->
+                            <div class="project-description-container">
+                                <div class="project-description collapsed" id="project6-desc">
+                                    This study investigates the complex relationship between digital identity and authenticity by examining how platform anonymity influences self-expression across different social media environments. Through quantitative analysis of 65 participants using convenience sampling, the research compares user behaviors and attitudes on anonymous platforms (Reddit, 4-Chan, Whisper) versus non-anonymous platforms (Instagram, TikTok, Facebook). The study tests four hypotheses examining social constraints on authenticity, the impact of anonymity on honest self-expression, gender differences in platform usage, and advice-seeking behaviors across platform types. The findings reveal that a significant majority (69.23%) of participants report constraining their self-expression due to concerns about social judgment, with this effect more pronounced among female respondents (76%) compared to male respondents (62%). Furthermore, 60% of participants indicated they would express themselves more honestly on completely anonymous platforms, compared to only 30.77% on platforms displaying usernames, demonstrating that anonymity substantially facilitates authentic self-disclosure. Gender analysis revealed unexpected patterns, with 56.92% of participants being female, contradicting initial hypotheses about male predominance in anonymous platform usage. Importantly, the research uncovered distinct patterns in advice-seeking behavior: approximately 48% of females and 31% of males prefer anonymous platforms for personal issues, while preferences shift toward non-anonymous platforms for work and social matters, with 29% of females and 14% of males choosing identifiable platforms for these contexts. These findings illuminate the critical role of perceived privacy and social context in determining platform choice and self-presentation strategies. The study demonstrates that social constraints significantly impede authentic self-expression on digital platforms, while anonymity serves as a liberating force that enables individuals to express their genuine thoughts and concerns without fear of judgment or social repercussions. The research underscores the importance of designing digital environments that balance anonymity with user safety, recognize gender-specific needs for privacy in personal matters, and accommodate the varying levels of disclosure comfort across different types of issues. These insights have substantial implications for platform designers, mental health professionals, and researchers seeking to understand the evolving dynamics of digital identity construction and authentic self-expression in contemporary online spaces. The study acknowledges limitations inherent in convenience sampling and calls for further research with more balanced, randomized samples to deepen understanding of how digital platform architecture influences human authenticity and well-being.
+                                </div>
+                                <div class="description-gradient" id="project6-gradient"></div>
+                            </div>
+
+                            <button class="read-more-toggle" data-target="project6">
+                                <i class="bi bi-chevron-down"></i>
+                                <span>Read More</span>
+                            </button>
+
+                            <div class="project-tech">
+                                <span class="tech-tag">Survey</span>
+                                <span class="tech-tag">Statistical Analysis</span>
+                                <span class="tech-tag">Hypothesis Testing</span>
+                                <span class="tech-tag">Python</span>
+                                <span class="tech-tag">Jupyter</span>
+                            </div>
+                            <div class="project-links">
+                                <!-- <a href="#" class="project-link"><i class="bi bi-github"></i> Data</a>
+                                <a href="#" class="project-link"><i class="bi bi-file-text"></i> Paper</a>
+                                <a href="#" class="project-link"><i class="bi bi-eye"></i> Insights</a> -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Project 7 (Cyber Society Theory) -->
+                    <div class="bento-card" data-category="nlp">
+                        <div class="depth-indicator">
+                            <i class="bi bi-braces"></i>
+                        </div>
+                        <div class="card-particles">
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                            <div class="quantum-particle"></div>
+                        </div>
+                        <div class="energy-wave"></div>
+                        <div class="card-inner">
+                            <div class="project-type">Sociological Theory • Digital Culture</div>
+                            <h3 class="project-title">Selves in Cyber Society: The Virtual Veil</h3>
+                            <div class="project-meta">
+                                <span><i class="bi bi-calendar3"></i> 2022</span>
+                                <span><i class="bi bi-book"></i> Theoretical</span>
+                                <span><i class="bi bi-pen"></i> Essay</span>
+                            </div>
+
+                            <!-- Project Summary Badge -->
+                            <div class="project-summary">
+                                <i class="bi bi-braces-asterisk summary-icon"></i>
+                                <div class="summary-text">
+                                    <strong>Theoretical Framework:</strong> Anonymous digital spaces allow liberation from Bourdieu's habitus constraints, enabling exploration of repressed identities. When balanced with offline responsibilities, virtual identity play can meaningfully contribute to authentic self-actualization through Foucault's "technologies of the self."
+                                </div>
+                            </div>
+
+                            <!-- Collapsible Description -->
+                            <div class="project-description-container">
+                                <div class="project-description collapsed" id="project7-desc">
+                                    This essay explores the complex relationship of authentic identities in contemporary cyberspace, examining how anonymous digital platforms influence self-actualization and identity formation. Drawing upon the theoretical frameworks of Pierre Bourdieu's concept of habitus, Michel Foucault's technologies of the self, and Emile Durkheim's theories of social integration and solidarity, this study investigates the extent to which anonymous virtual identities align with authentic selves and how this alignment influences both perceived and actual identity. The research demonstrates that anonymous online spaces can provide liberation from the constraints of habitus, allowing individuals to explore repressed aspects of their subjectivity that diverge from societal expectations ingrained through their socialization. Through the lens of Foucault's technologies of the self, the paper examines how individuals voluntarily engage in digital identity experimentation as a form of self-fashioning, using anonymous forums to safely explore various facets of identity without real-world consequences. Furthermore, applying Durkheim's framework, the study reveals how online communities foster social solidarity and belonging, particularly for those experiencing fragmented identities or social isolation in physical spaces. The paper acknowledges both the empowering potential of virtual identity exploration such as enhanced self-knowledge, expanded cultural recognition, increased life satisfaction, and the potential risks, including deindividuation, escapism, and distorted self-perception. Ultimately, this research argues that when approached with moderation and balanced alongside real-world responsibilities, anonymous virtual identity play can contribute meaningfully to authentic self-actualization by offering alternative avenues for self-expression, community connection, and personal growth that transcend conventional offline limitations.
+                                </div>
+                                <div class="description-gradient" id="project7-gradient"></div>
+                            </div>
+
+                            <button class="read-more-toggle" data-target="project7">
+                                <i class="bi bi-chevron-down"></i>
+                                <span>Read More</span>
+                            </button>
+
+                            <div class="project-tech">
+                                <span class="tech-tag">Bourdieu</span>
+                                <span class="tech-tag">Foucault</span>
+                                <span class="tech-tag">Durkheim</span>
+                                <span class="tech-tag">Theory</span>
+                                <span class="tech-tag">Philosophy</span>
+                            </div>
+                            <div class="project-links">
+                                <!-- <a href="#" class="project-link"><i class="bi bi-file-text"></i> Essay</a>
+                                <a href="#" class="project-link"><i class="bi bi-book"></i> Read</a>
+                                <a href="#" class="project-link"><i class="bi bi-chat"></i> Discuss</a> -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- External JavaScript Files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Consolidated JavaScript -->
+    <script>
+        // ========== VISUALIZATION HANDLER ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get modal elements
+            const modal = document.getElementById('visualization-modal');
+            const iframe = document.getElementById('viz-iframe');
+            const canvas = document.getElementById('viz-canvas');
+            const closeBtn = document.getElementById('close-modal');
+            const modalTitle = document.querySelector('.modal-title');
+            
+            // Store current visualization type
+            let currentVizType = '';
+            
+            // Handle all visualization buttons
+            document.querySelectorAll('.viz-cta-button').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const vizType = this.getAttribute('data-viz-type');
+                    const vizSrc = this.getAttribute('data-viz-src');
+                    const projectTitle = this.closest('.bento-card').querySelector('.project-title').textContent;
+                    
+                    // Store current visualization type
+                    currentVizType = vizType;
+                    
+                    // Update modal title
+                    modalTitle.textContent = `${projectTitle} - Visualization`;
+                    
+                    if (vizType === 'skyline') {
+                        // Open skyline visualization
+                        openSkylineViz(vizSrc);
+                    } else if (vizType === 'iframe') {
+                        // Open iframe visualization
+                        openIframeViz(vizSrc);
+                    }
+                });
+            });
+            
+            // Function to open skyline visualization
+            function openSkylineViz(src) {
+                // Hide iframe, show canvas
+                iframe.style.display = 'none';
+                canvas.style.display = 'block';
+                
+                // For skyline, we need to load the external page
+                // For now, we'll use iframe as fallback
+                openIframeViz(src);
+            }
+            
+            // Function to open iframe visualization
+            function openIframeViz(src) {
+                // Show iframe, hide canvas
+                iframe.style.display = 'block';
+                canvas.style.display = 'none';
+                
+                // Set iframe source
+                iframe.src = src;
+                
+                // Show modal
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+            
+            // Function to close modal
+            function closeModal() {
+                modal.classList.remove('active');
+                document.body.style.overflow = 'auto';
+                
+                // Reset iframe source
+                iframe.src = '';
+                
+                // Reset display
+                iframe.style.display = 'block';
+                canvas.style.display = 'none';
+            }
+            
+            // Close modal on button click
+            closeBtn.addEventListener('click', closeModal);
+            
+            // Close modal on overlay click
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
+            
+            // Close modal on Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && modal.classList.contains('active')) {
+                    closeModal();
+                }
+            });
+            
+            // ========== LOADING SCREEN ==========
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    const loadingScreen = document.querySelector('.loading-screen');
+                    if (loadingScreen) {
+                        loadingScreen.classList.add('hidden');
+                    }
+                }, 1000);
+            });
+
+            // ========== SCROLL PROGRESS BAR ==========
+            window.addEventListener('scroll', () => {
+                const scrollProgress = document.querySelector('.scroll-progress');
+                if (scrollProgress) {
+                    const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+                    const scrolled = window.scrollY;
+                    scrollProgress.style.transform = `scaleX(${scrolled / scrollable})`;
+                }
+            });
+
+            // ========== NAVBAR SCROLL EFFECT ==========
+            window.addEventListener('scroll', () => {
+                const navbar = document.querySelector('.navbar');
+                if (navbar) {
+                    if (window.scrollY > 50) {
+                        navbar.classList.add('scrolled');
+                    } else {
+                        navbar.classList.remove('scrolled');
+                    }
+                }
+            });
+
+            // ========== 3D BACKGROUND PARTICLE SYSTEM ==========
+            (() => {
+                const canvas = document.getElementById('three-bg');
+                if (!canvas) return;
+
+                const scene = new THREE.Scene();
+                const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.z = 8;
+                
+                const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance" });
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                renderer.setSize(window.innerWidth, window.innerHeight);
+
+                // Enhanced particle system with multiple layers
+                const particleLayers = [];
+                const layerConfigs = [
+                    { count: 20000, size: 0.0010, color: 0xc0c0c0, opacity: 0.4, speed: 0.001 },
+                    { count: 4000, size: 0.025, color: 0x909090, opacity: 0.3, speed: 0.0015 },
+                    { count: 2000, size: 0.030, color: 0xd4d4d4, opacity: 0.2, speed: 0.0002 }
+                ];
+
+                layerConfigs.forEach(config => {
+                    const positions = new Float32Array(config.count * 3);
+                    
+                    for (let i = 0; i < config.count; i++) {
+                        const i3 = i * 3;
+                        positions[i3] = (Math.random() - 0.5) * 30;
+                        positions[i3 + 1] = (Math.random() - 0.5) * 30;
+                        positions[i3 + 2] = (Math.random() - 0.5) * 30;
+                    }
+
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    
+                    const material = new THREE.PointsMaterial({
+                        size: config.size,
+                        color: config.color,
+                        transparent: true,
+                        opacity: config.opacity,
+                        depthWrite: false,
+                        blending: THREE.AdditiveBlending
+                    });
+
+                    const particles = new THREE.Points(geometry, material);
+                    scene.add(particles);
+                    particleLayers.push({ particles, speed: config.speed });
+                });
+
+                // Animation Loop
+                const clock = new THREE.Clock();
+                function animate() {
+                    const elapsed = clock.getElapsedTime();
+                    
+                    particleLayers.forEach((layer, index) => {
+                        layer.particles.rotation.y = elapsed * layer.speed;
+                        layer.particles.rotation.x = elapsed * layer.speed * 0.5;
+                        layer.particles.position.y = Math.sin(elapsed * 0.3 + index) * 0.5;
+                    });
+                    
+                    renderer.render(scene, camera);
+                    requestAnimationFrame(animate);
+                }
+                animate();
+
+                // Window resize handler
+                window.addEventListener('resize', () => {
+                    camera.aspect = window.innerWidth / window.innerHeight;
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+            })();
+
+            // ========== PROJECT FILTERING ==========
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            const projectCards = document.querySelectorAll('.bento-card');
+
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const filter = this.getAttribute('data-filter');
+                    
+                    // Update active button
+                    filterBtns.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Filter projects
+                    projectCards.forEach(card => {
+                        if (filter === 'all' || card.getAttribute('data-category') === filter) {
+                            card.style.display = 'flex';
+                            setTimeout(() => {
+                                card.style.opacity = '1';
+                                card.style.transform = 'scale(1)';
+                            }, 10);
+                        } else {
+                            card.style.opacity = '0';
+                            card.style.transform = 'scale(0.8)';
+                            setTimeout(() => {
+                                card.style.display = 'none';
+                            }, 300);
+                        }
+                    });
+                });
+            });
+
+            // ========== COLLAPSIBLE DESCRIPTION TOGGLE ==========
+            // Initialize all descriptions as collapsed
+            const descriptions = document.querySelectorAll('.project-description');
+            const gradients = document.querySelectorAll('.description-gradient');
+            
+            descriptions.forEach(desc => {
+                desc.classList.add('collapsed');
+            });
+            
+            gradients.forEach(gradient => {
+                gradient.classList.remove('hidden');
+            });
+            
+            // Add click handlers to all toggle buttons
+            const toggleButtons = document.querySelectorAll('.read-more-toggle');
+            
+            toggleButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-target');
+                    const description = document.getElementById(`${targetId}-desc`);
+                    const gradient = document.getElementById(`${targetId}-gradient`);
+                    
+                    if (description.classList.contains('collapsed')) {
+                        // Expand
+                        description.classList.remove('collapsed');
+                        description.classList.add('expanded');
+                        gradient.classList.add('hidden');
+                        this.innerHTML = '<i class="bi bi-chevron-up"></i><span>Read Less</span>';
+                        this.classList.add('expanded');
+                    } else {
+                        // Collapse
+                        description.classList.remove('expanded');
+                        description.classList.add('collapsed');
+                        gradient.classList.remove('hidden');
+                        this.innerHTML = '<i class="bi bi-chevron-down"></i><span>Read More</span>';
+                        this.classList.remove('expanded');
+                    }
+                    
+                    // Animate the transition
+                    const descriptionHeight = description.scrollHeight;
+                    description.style.maxHeight = description.classList.contains('collapsed') ? '120px' : `${descriptionHeight}px`;
+                });
+            });
+            
+            // Automatically expand descriptions that are short enough
+            descriptions.forEach((desc, index) => {
+                const descHeight = desc.scrollHeight;
+                if (descHeight <= 150) { // If description is already short
+                    desc.classList.remove('collapsed');
+                    desc.classList.add('expanded');
+                    const gradient = document.getElementById(`project${index + 1}-gradient`);
+                    if (gradient) gradient.classList.add('hidden');
+                    
+                    const button = document.querySelector(`[data-target="project${index + 1}"]`);
+                    if (button) {
+                        button.innerHTML = '<i class="bi bi-chevron-up"></i><span>Read Less</span>';
+                        button.classList.add('expanded');
+                    }
+                }
+            });
+
+            // ========== CARD HOVER EFFECTS ==========
+            const cards = document.querySelectorAll('.bento-card');
+            
+            cards.forEach(card => {
+                card.addEventListener('mousemove', function(e) {
+                    const rect = card.getBoundingClientRect();
+                    const x = ((e.clientX - rect.left) / rect.width) * 100;
+                    const y = ((e.clientY - rect.top) / rect.height) * 100;
+                    
+                    card.style.setProperty('--mouse-x', `${x}%`);
+                    card.style.setProperty('--mouse-y', `${y}%`);
+                });
+            });
+
+            // ========== UTILITY: SMOOTH ANCHOR SCROLLING ==========
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        window.scrollTo({
+                            top: target.offsetTop - 80,
+                            behavior: 'smooth'
+                        });
+                    }
+                });
+            });
+
+            // ========== REVEAL ON SCROLL ANIMATION ==========
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: "0px 0px -50px 0px"
+            };
+
+            const revealObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = "1";
+                        entry.target.style.transform = "translateY(0)";
+                        revealObserver.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            const revealElements = document.querySelectorAll('.bento-card, .paper-card, .section-title');
+            revealElements.forEach(el => {
+                el.style.opacity = "0";
+                el.style.transform = "translateY(30px)";
+                el.style.transition = "all 0.8s cubic-bezier(0.16, 1, 0.3, 1)";
+                revealObserver.observe(el);
+            });
+        });
+    </script>
+</body>
+</html>
